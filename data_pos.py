@@ -1,7 +1,26 @@
 import os
+from shapely.geometry import Point, Polygon
 import pandas as pd
 import numpy as np
 import math
+
+
+def is_inside(x,y, position):
+    points_inside = []
+    coord = {
+              'down_left': [(205,100),(290,175),(180,235),(100, 140)],
+              'top_left':  [(100,250),(205,390),(300,340),(180,200)],
+              'top_right':[(360,215),(250,290),(350, 380),(450,310)],
+              'down_right':  [(300,90),(400,150),(310, 220),(225,150)],
+               'impossible to find':[(0,1),(2,1),(2, 2),(2,2)]
+             }
+    region = Polygon(coord[position])
+    for vx,vy in zip(x,y):
+        p = Point(vx,vy)
+        if p.within(region):
+            points_inside.append((vx,vy))
+    return points_inside
+
 
 
 class RecPos:
@@ -176,7 +195,7 @@ class RecPos:
 
         return bigx, bigy
 
-    def filter_max_speed(self, x, y, max_speed=3):  # max speed 4m/s ()
+    def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
         for i in range(1, len(tmp_x) - 1):

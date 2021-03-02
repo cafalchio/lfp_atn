@@ -3,6 +3,8 @@ import mne as mne
 import numpy as np
 
 from neurochat.nc_lfp import NLfp
+
+
 def mne_example(eeg_filename1, eeg_filename2):
     print(f"Loading eeg data from {eeg_filename1}")
     lfp1 = NLfp()

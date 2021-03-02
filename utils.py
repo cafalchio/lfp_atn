@@ -6,7 +6,8 @@ import re
 from tqdm import tqdm
 
 # Run the create dataframe and clean data function
-file = 'data_scheme_w.csv'
+file = "data_scheme_w.csv"
+
 
 def windows_folder(folder):
     """
@@ -36,12 +37,12 @@ def create_dataframe(folder):
     root_folder = []
     time = []
     duration = []
-    
+
     try:
-        print('Load files ..')
+        print("Load files ..")
         df = pd.read_csv(file)
     except:
-        print('Indexing files...')
+        print("Indexing files...")
         for root, _, files in tqdm(os.walk(folder)):
             for file in files:
                 if file.endswith(".set"):
@@ -405,7 +406,7 @@ def clean_data(df):
     dataframe: Cleaned dataframe
 
     """
-    print('Cleaning files..')
+    print("Cleaning files..")
     df["recording_name"] = df.filename.apply(lambda x: x[:-4])
     # Rat name
     df["rat"] = df.recording_name.apply(get_rat_name)
