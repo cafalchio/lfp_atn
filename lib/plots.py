@@ -43,3 +43,7 @@ def plot_mne(raw_array, base_name):
         remove_dc=False,
         scalings=dict(eeg=250e-5),
     )
+
+
+def plot_pos_over_time(x, y, dot=True):
+    pass
