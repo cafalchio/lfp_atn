@@ -29,3 +29,17 @@ def plot_tmaze(x, y, wview, dot=True):
     ax = plt.title("T maze postition plot")
     plt.tight_layout()
     return plt.show()
+
+
+def plot_mne(raw_array, base_name):
+    raw_array.load_data()
+    raw_array.plot(
+        n_channels=2,
+        block=True,
+        duration=30,
+        show=True,
+        clipping="transparent",
+        title="Raw LFP Data from {}".format(base_name),
+        remove_dc=False,
+        scalings=dict(eeg=250e-5),
+    )
