@@ -1,12 +1,12 @@
-from utils import create_dataframe, clean_data
+from lib.utils import create_dataframe, clean_data
 import random
 
 # import re
 # import math
 import pandas as pd
-from data_pos import RecPos
-from data_lfp import load_lfp_Axona
-from plots import plot_tmaze
+from lib.data_pos import RecPos
+from lib.data_lfp import load_lfp_Axona
+from lib.plots import plot_tmaze
 import mne
 
 
