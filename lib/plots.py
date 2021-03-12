@@ -1,5 +1,3 @@
-from time import time
-
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, writers
 import numpy as np
@@ -51,15 +49,13 @@ def plot_mne(raw_array, base_name):
 
 def plot_pos_over_time(x, y, rate=2, save=False):
     fig, ax = plt.subplots(figsize=(8, 8))
-    xdata = []
-    ydata = []
     (scatter,) = ax.plot([], [], "ko")
-    time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes)
+    time_text = ax.text(0.02, 0.95, "", transform=ax.transAxes)
 
     def init():
         """TODO incorporate win size."""
         ax.set_xlim(0, 600)
-        ax.set_ylim(0, 600)
+        ax.set_ylim(600, 0)
         time_text.set_text("")
         return scatter, time_text
 
@@ -75,21 +71,23 @@ def plot_pos_over_time(x, y, rate=2, save=False):
     frames = np.linspace(0, len(x), num=num_samples, dtype=np.uint32)
 
     ani = FuncAnimation(
-        fig, update, frames=frames, interval=interval, init_func=init)
+        fig, update, frames=frames, interval=interval, init_func=init, repeat=True
+    )
 
     if save:
-        Writer = writers['ffmpeg']
-        writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+        Writer = writers["ffmpeg"]
+        writer = Writer(fps=15, metadata=dict(artist="Me"), bitrate=1800)
         ani.save("animated.mp4", writer)
 
     else:
         plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from .data_pos import RecPos
+
     main_fname = r"D:\SubRet_recordings_imaging\CSR6\+ maze\27032018_t3\S8\27032018_CSR6_+maze_t3_.set"
     rc = RecPos(main_fname)
-    x, y = rc.get_position()
+    main_x, main_y = rc.get_position()
 
-    plot_pos_over_time(x, y, rate=10, save=False)
+    plot_pos_over_time(main_x, main_y, rate=10, save=False)
