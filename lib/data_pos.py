@@ -197,10 +197,11 @@ class RecPos:
     def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
-        for i in range(1, len(tmp_x) - 1):
-            if (math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)) > (
-                max_speed * self.pixels_per_metre
-            ):
+        threshold = max_speed * self.pixels_per_metre
+        for i in range(1, len(tmp_x)):
+            distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
+            # speed = distance * 0.02
+            if distance > threshold:
                 tmp_x[i] = 1023
                 tmp_y[i] = 1023
         return tmp_x, tmp_y
@@ -243,10 +244,10 @@ class RecPos:
             sxx, syy = self.filter_max_speed(sxx, syy)
 
             ### Interpolate missing values
-            bxx = (pd.Series(bxx).astype(float)).interpolate("cubic")
-            sxx = (pd.Series(sxx).astype(float)).interpolate("cubic")
-            byy = (pd.Series(byy).astype(float)).interpolate("cubic")
-            syy = (pd.Series(syy).astype(float)).interpolate("cubic")
+            bxx = (pd.Series(bxx).astype(float)).interpolate("linear")
+            sxx = (pd.Series(sxx).astype(float)).interpolate("linear")
+            byy = (pd.Series(byy).astype(float)).interpolate("linear")
+            syy = (pd.Series(syy).astype(float)).interpolate("linear")
 
             ### Average both LEDs
             x = list((bxx + sxx) / 2)
