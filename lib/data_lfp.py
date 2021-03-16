@@ -6,7 +6,6 @@ import numpy as np
 
 # Function from NeuroChat - read LFP
 def load_lfp_Axona(file_name):
-
     file_directory, file_basename = os.path.split(file_name)
     file_tag, file_extension = os.path.splitext(file_basename)
     file_extension = file_extension[1:]
@@ -107,12 +106,7 @@ def load_lfp_Axona(file_name):
                 byte_buffer = np.fromfile(f, dtype="uint8")
                 len_bytebuffer = len(byte_buffer)
                 end_offset = len("\r\ndata_end\r")
-                lfp_wave = np.zeros(
-                    [
-                        num_samples,
-                    ],
-                    dtype=np.float64,
-                )
+                lfp_wave = np.zeros([num_samples,], dtype=np.float64,)
                 for k in np.arange(0, bytes_per_sample, 1):
                     byte_offset = k
                     sample_value = (
@@ -126,12 +120,7 @@ def load_lfp_Axona(file_name):
                     )
                     if sample_value.size < num_samples:
                         sample_value = np.append(
-                            sample_value,
-                            np.zeros(
-                                [
-                                    num_samples - sample_value.size,
-                                ]
-                            ),
+                            sample_value, np.zeros([num_samples - sample_value.size,]),
                         )
                     sample_value = sample_value.astype(
                         np.float64, casting="unsafe", copy=False
@@ -282,12 +271,7 @@ def mne_lfp_Axona(file_name):
                     byte_buffer = np.fromfile(f, dtype="uint8")
                     len_bytebuffer = len(byte_buffer)
                     end_offset = len("\r\ndata_end\r")
-                    lfp_wave = np.zeros(
-                        [
-                            num_samples,
-                        ],
-                        dtype=np.float64,
-                    )
+                    lfp_wave = np.zeros([num_samples,], dtype=np.float64,)
                     for k in np.arange(0, bytes_per_sample, 1):
                         byte_offset = k
                         sample_value = (
@@ -302,11 +286,7 @@ def mne_lfp_Axona(file_name):
                         if sample_value.size < num_samples:
                             sample_value = np.append(
                                 sample_value,
-                                np.zeros(
-                                    [
-                                        num_samples - sample_value.size,
-                                    ]
-                                ),
+                                np.zeros([num_samples - sample_value.size,]),
                             )
                         sample_value = sample_value.astype(
                             np.float64, casting="unsafe", copy=False
@@ -323,6 +303,6 @@ def mne_lfp_Axona(file_name):
                         data.append((lfp_wave * AD_bit_uvolt) / 1000)
                         labels.append(f"ch_{ch}")
                         ch_types.append("eeg")
-    
+
     info = mne.create_info(ch_names=labels, sfreq=sampling_rate, ch_types=ch_types)
     return mne.io.RawArray(np.array(data), info)

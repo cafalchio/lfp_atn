@@ -6,7 +6,7 @@ import re
 from tqdm import tqdm
 
 # Run the create dataframe and clean data function
-file = "data_scheme_w.csv"
+file = "../data_scheme_w.csv"
 
 
 def windows_folder(folder):

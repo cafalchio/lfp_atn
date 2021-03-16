@@ -1,12 +1,12 @@
-from utils import create_dataframe, clean_data
+from lib.utils import create_dataframe, clean_data
 import random
 
 # import re
 # import math
 import pandas as pd
-from data_pos import RecPos
-from data_lfp import load_lfp_Axona
-from plots import plot_tmaze
+from lib.data_pos import RecPos
+from lib.data_lfp import load_lfp_Axona
+from lib.plots import plot_tmaze
 import mne
 
 
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     path = "d:/beths"
     df = create_dataframe(path)
     df = clean_data(df)
-    df.to_csv(path + '/data_df.csv', header=False)
+    df.to_csv(path + "/data_df.csv", header=False)
 
     # Load T-maze files
     df = df.loc[df.maze != "screening"]
@@ -25,8 +25,7 @@ if __name__ == "__main__":
         df.loc[df.maze == "tmaze", ["folder", "filename"]].agg("/".join, axis=1).values
     )
 
-    #Save table:
-    
+    # Save table:
 
     # Select a random file (test)
     i = random.randint(0, len(tmaze_files))
