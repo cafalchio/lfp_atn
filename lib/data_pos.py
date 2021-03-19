@@ -240,8 +240,8 @@ class RecPos:
                 syy.append(sy)
 
             ### Remove coordinates with max_speed > 4ms
-            bxx, byy = self.filter_max_speed(bxx, byy)
-            sxx, syy = self.filter_max_speed(sxx, syy)
+            bxx, byy = self.filter_max_speed(bxx, byy, max_speed=4)
+            sxx, syy = self.filter_max_speed(sxx, syy, max_speed=4)
 
             ### Interpolate missing values
             bxx = (pd.Series(bxx).astype(float)).interpolate("linear")
