@@ -41,9 +41,7 @@ def set_file_locations():
                 os.path.join(
                     "__dirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
-                os.path.join(
-                    "__dirname__", "..", "functions", "simuran_theta_power.py"
-                ),
+                os.path.join("__dirname__", "..", "functions", "avg_coherence.py"),
                 "CSR{}".format(val),
             )
         )
@@ -54,9 +52,7 @@ def set_file_locations():
                 os.path.join(
                     "__dirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
-                os.path.join(
-                    "__dirname__", "..", "functions", "simuran_theta_power.py"
-                ),
+                os.path.join("__dirname__", "..", "functions", "avg_coherence.py"),
                 "LSR{}".format(val),
             )
         )
@@ -69,9 +65,9 @@ def set_fixed_params(in_dict):
 
     # Can set a function to run after all analysis here
     # For example, it could plot a summary of all the data
-    from do_wt_figure import do_spectrum
+    from lfp_atn_simuran.analysis.do_wt_figure import do_fig
 
-    in_dict["after_batch_fn"] = do_spectrum
+    in_dict["after_batch_fn"] = do_fig
 
     # If the after batch function needs the full dataset
     # Pass this as true
@@ -80,7 +76,7 @@ def set_fixed_params(in_dict):
     in_dict["keep_all_data"] = False
 
     # What folders to merge
-    in_dict["to_merge"] = ["simuran_theta_power"]
+    in_dict["to_merge"] = ["avg_coherence"]
     return in_dict
 
 

@@ -7,3 +7,4 @@ __pycache__
 simuran/sim_results/
 simuran/saved/
 *.db.*
+*.egg-info

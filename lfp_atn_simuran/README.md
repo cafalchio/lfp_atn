@@ -11,3 +11,6 @@ The results will be in `sim_results\simuran_theta_power`.
 
 ## Reference code from CLA experiment
 See https://github.com/seankmartin/Claustrum_Experiment
+
+## Install the code
+pip install -e .
