@@ -39,6 +39,7 @@ CLASSIFIERS = [
     "Operating System :: Windows",
 ]
 
+
 if __name__ == "__main__":
 
     setup(
@@ -52,6 +53,6 @@ if __name__ == "__main__":
         version=VERSION,
         install_requires=INSTALL_REQUIRES,
         include_package_data=True,
-        packages=find_packages(),
+        packages=["lfp_atn_simuran", "lfp_atn_simuran.analysis"],
         classifiers=CLASSIFIERS,
     )
