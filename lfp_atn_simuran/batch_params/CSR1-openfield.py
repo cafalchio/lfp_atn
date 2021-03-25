@@ -25,7 +25,7 @@ interactive = False
 mapping = {}  # see default_params.py to set this up
 
 # The magic string __dirname__, is replaced by the directory this file is in
-directory = "__dirname__"
+directory = "__thisdirname__"
 # Absolute path to a file that contains the mapping.
 mapping_file = os.path.abspath(
     os.path.join(directory, "..", "recording_mappings", "CSR1.py")
