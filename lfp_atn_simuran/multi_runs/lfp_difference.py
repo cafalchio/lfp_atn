@@ -15,11 +15,6 @@ def create_new_entry(batch_param_loc, fn_param_loc, add=""):
 
         param_names["cell_list_name"] = "cell_list{}.txt".format(add)
 
-        # These will often stay the same since the parameters that describe the
-        # layout of a recording don't often change
-        param_names["base_param_name"] = "simuran_base_params.py"
-        param_names["batch_find_name"] = "simuran_params.py"
-
         return param_names
 
     output_dict = make_default_dict(add=add)
