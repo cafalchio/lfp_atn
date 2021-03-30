@@ -71,7 +71,12 @@ def main(recording, figures, base_dir, split_len=100):
         i = -2
         axes[i].plot(x_pos, sub_mean[c_start:c_end], color="r")
         axes[i].text(
-            0.03, 1.02, "Sub mean", transform=axes[i].transAxes, color="r", fontsize=15,
+            0.03,
+            1.02,
+            "Sub mean",
+            transform=axes[i].transAxes,
+            color="r",
+            fontsize=15,
         )
         axes[i].set_ylim(y_axis_min, y_axis_max)
         axes[i].tick_params(labelsize=12)
@@ -80,7 +85,12 @@ def main(recording, figures, base_dir, split_len=100):
         i = -1
         axes[i].plot(x_pos, rsc_mean[c_start:c_end], color="r")
         axes[i].text(
-            0.03, 1.02, "RSC mean", transform=axes[i].transAxes, color="r", fontsize=15,
+            0.03,
+            1.02,
+            "RSC mean",
+            transform=axes[i].transAxes,
+            color="r",
+            fontsize=15,
         )
         axes[i].set_ylim(y_axis_min, y_axis_max)
         axes[i].tick_params(labelsize=12)

@@ -47,7 +47,12 @@ def create_mne_array(recording, ch_names=None):
 
 
 def ICA_pipeline(
-    mne_array, regions, chans_to_plot=20, base_name="", exclude=None, skip_plots=False,
+    mne_array,
+    regions,
+    chans_to_plot=20,
+    base_name="",
+    exclude=None,
+    skip_plots=False,
 ):
     """This is example code using mne."""
     raw = mne_array

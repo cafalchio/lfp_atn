@@ -36,9 +36,7 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
-                os.path.join(
-                    "__thisdirname__", "..", "functions", "clean_signals.py"
-                ),
+                os.path.join("__thisdirname__", "..", "functions", "clean_signals.py"),
                 "CSR{}".format(val),
             )
         )
@@ -49,9 +47,7 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
-                os.path.join(
-                    "__thisdirname__", "..", "functions", "clean_signals.py"
-                ),
+                os.path.join("__thisdirname__", "..", "functions", "clean_signals.py"),
                 "LSR{}".format(val),
             )
         )
