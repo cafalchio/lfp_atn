@@ -2,6 +2,8 @@
 import numpy as np
 
 from neurochat.nc_utils import butter_filter
+from simuran.lfp import convert_signals_to_mne
+from astropy import units as u
 
 
 def detect_outlying_signals(signals, z_threshold=3):
@@ -83,7 +85,7 @@ def clean_and_average_signals(
 
     # 1. Try to identify dead channels
     good_signals, bad_signals, good_idx, bad_idx = detect_outlying_signals(
-        signals, z_threshold=3
+        signals_, z_threshold=3
     )
     if verbose:
         print("Excluded {} signals with indices {}".format(len(bad_idx), bad_idx))
@@ -97,7 +99,10 @@ def clean_and_average_signals(
     # TODO replace by own smoothing
     smooth_sig = butter_filter(avg_sig, sampling_rate, *filter_)
 
-    return smooth_sig
+    if hasattr(signals[0], "unit"):
+        return smooth_sig * signals[0].unit
+    else:
+        return smooth_sig
 
 
 class LFPClean(object):
@@ -127,7 +132,7 @@ class LFPClean(object):
         self.visualise = visualise
 
     @staticmethod
-    def clean_lfp_signals(recording):
+    def clean_lfp_signals(recording, min_f=1.5, max_f=100, verbose=False, vis=False):
         """
         Clean the lfp signals in a recording.
 
@@ -140,19 +145,22 @@ class LFPClean(object):
         None
 
         """
-        LFPClean._clean_avg_signals(recording)
+        LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
+
+        if vis:
+            mne_array = convert_signals_to_mne(recording.signals)
+            print(mne_array)
 
     @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
         filter_ = [10, min_f, max_f, "bandpass"]
 
         lfp_signals = recording.get_signals()
-        regions = lfp_signals.get_property("region")
 
         signals_grouped_by_region = lfp_signals.split_into_groups("region")
 
         output_dict = {}
-        for region, signals in signals_grouped_by_region.items():
+        for region, (signals, idxs) in signals_grouped_by_region.items():
             output_dict[region] = clean_and_average_signals(
                 [s.samples for s in signals],
                 signals[0].sampling_rate,

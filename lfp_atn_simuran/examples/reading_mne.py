@@ -1,7 +1,7 @@
 """Example of reading an LFP file into MNE."""
 import os
 
-import mne as mne
+import mne
 import numpy as np
 
 from neurochat.nc_lfp import NLfp
