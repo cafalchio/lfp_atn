@@ -2,7 +2,7 @@
 import numpy as np
 
 from neurochat.nc_utils import butter_filter
-from simuran.lfp import convert_signals_to_mne
+from simuran.lfp import plot
 from astropy import units as u
 
 
@@ -85,7 +85,7 @@ def clean_and_average_signals(
 
     # 1. Try to identify dead channels
     good_signals, bad_signals, good_idx, bad_idx = detect_outlying_signals(
-        signals_, z_threshold=3
+        signals_, z_threshold=z_threshold
     )
     if verbose:
         print("Excluded {} signals with indices {}".format(len(bad_idx), bad_idx))
@@ -148,8 +148,7 @@ class LFPClean(object):
         LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
 
         if vis:
-            mne_array = convert_signals_to_mne(recording.signals)
-            print(mne_array)
+            plot(recording.signals, proj=True)
 
     @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
