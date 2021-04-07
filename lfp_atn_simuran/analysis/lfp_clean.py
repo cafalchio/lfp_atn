@@ -1,9 +1,10 @@
 """Clean LFP signals."""
+from collections import OrderedDict
+
 import numpy as np
 
 from neurochat.nc_utils import butter_filter
-from simuran.lfp import plot
-from astropy import units as u
+from simuran.lfp import plot, LFP
 
 
 def detect_outlying_signals(signals, z_threshold=3):
@@ -145,10 +146,17 @@ class LFPClean(object):
         None
 
         """
-        LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
+        sig_dict = LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
+        appended_sigs = recording.signals
+        for k, v in sig_dict.items():
+            lfp = LFP()
+            lfp.from_numpy(v, sampling_rate=recording.signals[0].sampling_rate)
+            lfp.set_region(k)
+            lfp.set_channel("avg")
+            appended_sigs.append(lfp)
 
         if vis:
-            plot(recording.signals, proj=True)
+            plot(appended_sigs, proj=False)
 
     @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
@@ -158,7 +166,7 @@ class LFPClean(object):
 
         signals_grouped_by_region = lfp_signals.split_into_groups("region")
 
-        output_dict = {}
+        output_dict = OrderedDict()
         for region, (signals, idxs) in signals_grouped_by_region.items():
             output_dict[region] = clean_and_average_signals(
                 [s.samples for s in signals],
@@ -166,3 +174,5 @@ class LFPClean(object):
                 filter_,
                 verbose=verbose,
             )
+
+        return output_dict
