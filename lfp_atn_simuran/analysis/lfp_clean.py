@@ -3,8 +3,8 @@ from collections import OrderedDict
 
 import numpy as np
 
+from simuran.eeg import Eeg
 from neurochat.nc_utils import butter_filter
-from simuran.lfp import plot, LFP
 
 
 def detect_outlying_signals(signals, z_threshold=3):
@@ -147,16 +147,16 @@ class LFPClean(object):
 
         """
         sig_dict = LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
-        appended_sigs = recording.signals
+        appended_sigs = recording.get_eeg_signals(copy=False)
         for k, v in sig_dict.items():
-            lfp = LFP()
-            lfp.from_numpy(v, sampling_rate=recording.signals[0].sampling_rate)
-            lfp.set_region(k)
-            lfp.set_channel("avg")
-            appended_sigs.append(lfp)
+            eeg = Eeg()
+            eeg.from_numpy(v, sampling_rate=recording.signals[0].sampling_rate)
+            eeg.set_region(k)
+            eeg.set_channel("avg")
+            appended_sigs.append(eeg)
 
         if vis:
-            plot(appended_sigs, proj=False)
+            appended_sigs.plot(proj=False)
 
     @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
