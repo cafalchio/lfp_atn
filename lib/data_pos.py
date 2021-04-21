@@ -50,7 +50,6 @@ class RecPos:
                         line = line.decode("latin-1")
                     except BaseException:
                         break
-
                     if line == "":
                         break
                     if line.startswith("trial_date"):
@@ -101,7 +100,7 @@ class RecPos:
                         break
                     else:
                         f.seek(-9, 1)
-
+                        
                 if not header_offset:
                     print("Error: data_start marker not found!")
                 else:
@@ -142,6 +141,7 @@ class RecPos:
         else:
             print(f"No pos file found for file {self.pos_file}")
 
+    # Methods
     def get_cam_view(self):
         self.cam_view = {
             "min_x": self.min_x,
@@ -191,22 +191,21 @@ class RecPos:
     def get_raw_pos(self):
         bigx = [value[0] for value in self.raw_position["big_spotx"]]
         bigy = [value[0] for value in self.raw_position["big_spoty"]]
-
         return bigx, bigy
 
-    def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
+    def filter_max_speed(self, x, y, max_speed = 4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
-        threshold = max_speed * self.pixels_per_metre
+        threshold = max_speed * 300 * 50 # max speed * distance (m) /  50 samples (s)
         for i in range(1, len(tmp_x)):
             distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
-            # speed = distance * 0.02
             if distance > threshold:
                 tmp_x[i] = 1023
                 tmp_y[i] = 1023
+                
         return tmp_x, tmp_y
 
-    def get_position(self):
+    def get_position(self, raw=False):
         try:
             count_missing = 0
             bxx, sxx = [], []
@@ -224,7 +223,6 @@ class RecPos:
                     count_missing += 1
                     bx = np.nan
                     sx = np.nan
-
                 bxx.append(bx)
                 sxx.append(sx)
 
@@ -240,15 +238,17 @@ class RecPos:
                 syy.append(sy)
 
             ### Remove coordinates with max_speed > 4ms
-            bxx, byy = self.filter_max_speed(bxx, byy, max_speed=4)
-            sxx, syy = self.filter_max_speed(sxx, syy, max_speed=4)
+            bxx, byy = self.filter_max_speed(bxx, byy)
+            sxx, syy = self.filter_max_speed(sxx, syy)
 
             ### Interpolate missing values
             bxx = (pd.Series(bxx).astype(float)).interpolate("linear")
             sxx = (pd.Series(sxx).astype(float)).interpolate("linear")
             byy = (pd.Series(byy).astype(float)).interpolate("linear")
             syy = (pd.Series(syy).astype(float)).interpolate("linear")
-
+            if raw:
+                return [(bxx, byy), (sxx, syy)]
+            
             ### Average both LEDs
             x = list((bxx + sxx) / 2)
             y = list((byy + syy) / 2)
@@ -272,9 +272,47 @@ class RecPos:
             print(f"No position information found in {self.pos_file}")
 
     def get_speed(self):
-        print("Not implemented")
-        pass
+        speed = [0]
+        print('Speed in cm/s')
+        x, y = self.get_position()
+        for i in range(1, len(x)):
+            sp = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) / 0.02  #(pixel/s)
+            speed.append(sp/3)  # 300 pixels per metre * 100 (cm/s)
+        return speed
 
-    def get_angular_pos(self):
-        print("Not implemented")
-        pass
+    def get_angular_pos(self): # Suposing Big Led in the Right side
+        
+        # To do: (Not working)
+            # Check LEDs sides
+            # Fix the function
+            # implement Axona's checks
+                #  no. pixels in big light = 18.35 +/- 8.48
+                #  no. pixels in small light = 10.96 +/- 5.92
+                #  1615 points swapped as 2-light confusions
+        
+        def calc_angle(R, L, d = 12): # d - distance from LEDs in pixels
+            if R[1] == L[1]:
+                if R[0] > L[0]: 
+                    return 0.
+                return 180.
+            elif R[0] == L[0]:
+                if R[1] > L[1]: 
+                    return 90.
+                return 270.
+            elif R[1] > L[1]:
+                return math.acos((R[0] - L[0]) / d) * 180 / math.pi
+            elif R[0] < L[0]:
+                return 90 + math.acos((R[0] - L[0]) / d) * 180 / math.pi
+            else:
+                return 360 - math.acos((R[0] - L[0]) / d) * 180 / math.pi
+        
+        L, R = self.get_position(raw=True)
+        d = []
+        for i in range(0, len(R)-1):
+            d.append(((R[i] - R[i+1]) ** 2 + (L[i] - L[i+1])**2)**.5)
+        d = np.median(np.asarray(d))
+        angles = []
+        for r, l in zip(R,L):
+            angles.append(calc_angle(r, l, d))
+        return angles
+    
