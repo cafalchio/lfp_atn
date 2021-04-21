@@ -2,8 +2,8 @@
 from collections import OrderedDict
 
 import numpy as np
+import simuran
 
-from simuran.eeg import Eeg
 from neurochat.nc_utils import butter_filter
 
 
@@ -133,7 +133,9 @@ class LFPClean(object):
         self.visualise = visualise
 
     @staticmethod
-    def clean_lfp_signals(recording, min_f=1.5, max_f=100, verbose=False, vis=False):
+    def clean_lfp_signals(
+        recording, min_f=1.5, max_f=100, append_avg=False, verbose=False, vis=False
+    ):
         """
         Clean the lfp signals in a recording.
 
@@ -143,13 +145,21 @@ class LFPClean(object):
 
         Returns
         -------
-        None
+        EegArray or tuple of EegArray
+            The cleaned signals, with average signals appended
+            Or (the cleaned signals, the average signals)
 
         """
         sig_dict = LFPClean._clean_avg_signals(recording, min_f, max_f, verbose)
         appended_sigs = recording.get_eeg_signals(copy=False)
+
+        if append_avg:
+            appended_sigs = recording.get_eeg_signals(copy=False)
+        else:
+            appended_sigs = simuran.EegArray()
+
         for k, v in sig_dict.items():
-            eeg = Eeg()
+            eeg = simuran.Eeg()
             eeg.from_numpy(v, sampling_rate=recording.signals[0].sampling_rate)
             eeg.set_region(k)
             eeg.set_channel("avg")
@@ -157,6 +167,8 @@ class LFPClean(object):
 
         if vis:
             appended_sigs.plot(proj=False)
+
+        return appended_sigs
 
     @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
