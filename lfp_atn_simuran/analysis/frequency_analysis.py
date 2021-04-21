@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.signal import welch
 from astropy import units as u
+from sklearn.cluster import KMeans
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
@@ -17,32 +18,52 @@ def detect_outlying_signals(signals):
 
     return diff
 
+
 def grouped_powers(recording, **kwargs):
     """Signal power in clusters."""
     s_part = kwargs.get("win_len", 2)
-    print(s_part)
-    cluster_features = np.zeros((len(recording.signals), 10)) * u.uV
+    n_clusters = kwargs.get("n_clusters", 4)
+    step = kwargs.get("step", 0.1)
+    min_f = kwargs.get("min_f", 0.5)
+    max_f = kwargs.get("max_f", 125)
+    n_features = int(s_part / step)
+    cluster_features = np.zeros((len(recording.signals), n_features)) * u.uV
     for i, sig in enumerate(recording.signals):
-        for j, val in enumerate(np.arange(0, s_part, step=0.1)):
-            sample = sig.in_range(val, val+0.1)
-            res = np.sum(sample)
+        for j, val in enumerate(np.arange(0, s_part, step=step)):
+            sample = sig.in_range(val, val + 0.1)
+            res = np.sum(np.abs(sample))
             cluster_features[i][j] = res
-    for i, clust in enumerate(cluster_features):
-        print(f"{i}: {clust}")
+    cluster = KMeans(n_clusters=n_clusters)
+    cluster.fit(cluster_features)
 
+    results = {"clustering": {}}
+    sigs = {}
+    for i in range(n_clusters):
+        idxs = np.nonzero(cluster.labels_ == i)[0]
+        sigs[i] = recording.signals.subsample(idxs)
+        results["clustering"][i] = [s.channel for s in sigs[i]]
+
+    for i in range(n_clusters):
+        avg_sig = LFPClean.avg_signals(sigs[i], min_f, max_f)
+        res = signal_powers(avg_sig, **kwargs)
+        for k, v in res.items():
+            results[f"Cluster {i} -- {k}"] = v
+
+    return results
 
 
 def powers(recording, **kwargs):
-    signals = LFPClean.clean_lfp_signals(recording, 0.5, 125)
+    min_f = kwargs.get("min_f", 0.5)
+    max_f = kwargs.get("max_f", 100)
+    signals = LFPClean.clean_lfp_signals(recording, min_f, max_f)
     return signal_powers(signals, **kwargs)
 
 
-def signal_powers(signals, **kwargs):
+def signal_powers(signals_grouped_by_region, **kwargs):
     results = {}
+    window_sec = kwargs.get("window_sec", 4)
 
-    signals_grouped_by_region = signals.split_into_groups("region")
-
-    for name, (signal, idxs) in signals_grouped_by_region.items():
+    for name, signal in signals_grouped_by_region.items():
         results["{} delta".format(name)] = np.nan
         results["{} theta".format(name)] = np.nan
         results["{} low gamma".format(name)] = np.nan
@@ -56,16 +77,16 @@ def signal_powers(signals, **kwargs):
 
         # TODO find good bands from a paper
         sig_in_use = signal.to_neurochat()
-        delta_power = sig_in_use.underlying.bandpower(
+        delta_power = sig_in_use.bandpower(
             [1.5, 4], window_sec=window_sec, band_total=True
         )
-        theta_power = sig_in_use.underlying.bandpower(
+        theta_power = sig_in_use.bandpower(
             [6, 10], window_sec=window_sec, band_total=True
         )
-        low_gamma_power = sig_in_use.underlying.bandpower(
+        low_gamma_power = sig_in_use.bandpower(
             [30, 55], window_sec=window_sec, band_total=True
         )
-        high_gamma_power = sig_in_use.underlying.bandpower(
+        high_gamma_power = sig_in_use.bandpower(
             [65, 90], window_sec=window_sec, band_total=True
         )
 
@@ -88,7 +109,7 @@ def signal_powers(signals, **kwargs):
         results["{} low gamma rel".format(name)] = low_gamma_power["relative_power"]
         results["{} high gamma rel".format(name)] = high_gamma_power["relative_power"]
 
-        low, high = [0.5, 120]
+        low, high = [0.1, 125]
         window_sec = kwargs.get("window_sec", 2 / (low + 0.000001))
         unit = kwargs.get("unit", "micro")
         scale = u.uV if unit == "micro" else u.mV

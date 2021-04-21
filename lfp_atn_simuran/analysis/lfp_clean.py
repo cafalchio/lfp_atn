@@ -171,6 +171,27 @@ class LFPClean(object):
         return appended_sigs
 
     @staticmethod
+    def avg_signals(signals, min_f, max_f):
+        # TODO reconsider the filtering and method here
+        filter_ = [10, min_f, max_f, "bandpass"]
+        signals_grouped_by_region = signals.split_into_groups("region")
+
+        output_dict = OrderedDict()
+        for region, (signals, idxs) in signals_grouped_by_region.items():
+            val = clean_and_average_signals(
+                [s.samples for s in signals],
+                signals[0].sampling_rate,
+                filter_,
+            )
+            eeg = simuran.Eeg()
+            eeg.from_numpy(val, sampling_rate=signals[0].sampling_rate)
+            eeg.set_region(region)
+            eeg.set_channel("avg")
+            output_dict[region] = eeg
+
+        return output_dict
+
+    @staticmethod
     def _clean_avg_signals(recording, min_f=1.5, max_f=100, verbose=False):
         filter_ = [10, min_f, max_f, "bandpass"]
 
