@@ -17,6 +17,20 @@ def detect_outlying_signals(signals):
 
     return diff
 
+def grouped_powers(recording, **kwargs):
+    """Signal power in clusters."""
+    s_part = kwargs.get("win_len", 2)
+    print(s_part)
+    cluster_features = np.zeros((len(recording.signals), 10)) * u.uV
+    for i, sig in enumerate(recording.signals):
+        for j, val in enumerate(np.arange(0, s_part, step=0.1)):
+            sample = sig.in_range(val, val+0.1)
+            res = np.sum(sample)
+            cluster_features[i][j] = res
+    for i, clust in enumerate(cluster_features):
+        print(f"{i}: {clust}")
+
+
 
 def powers(recording, **kwargs):
     signals = LFPClean.clean_lfp_signals(recording, 0.5, 125)
