@@ -206,6 +206,8 @@ class RecPos:
         return tmp_x, tmp_y
 
     def get_position(self, raw=False):
+        # TODO include the checking for big-small mix ups
+        # TODO add verbose reading like TINT
         try:
             count_missing = 0
             bxx, sxx = [], []
@@ -273,12 +275,84 @@ class RecPos:
 
     def get_speed(self):
         speed = [0]
-        print('Speed in cm/s')
-        x, y = self.get_position()
+        # print('Speed in cm/s')
+        [(bxx, byy), (sxx, syy)] = self.get_position(raw=True)
+        x = list((bxx + sxx) / 2)
+        y = list((byy + syy) / 2)
         for i in range(1, len(x)):
-            sp = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) / 0.02  #(pixel/s)
-            speed.append(sp/3)  # 300 pixels per metre * 100 (cm/s)
-        return speed
+            sp = math.sqrt(
+                (x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) / (3 * 0.02)  
+                # (pixel/s) - 300 pixels per metre * 100 (cm/s)
+            speed.append(sp)
+
+        # Try to find jumpy points
+        for i, val in enumerate(np.diff(speed)):
+            if val > 4: # filter instantaneous speed > 3.6 m / s
+                x[i+1] = np.nan
+                y[i+1] = np.nan
+        x = (pd.Series(x).astype(float)).interpolate("linear")
+        y = (pd.Series(y).astype(float)).interpolate("linear")
+
+        b = int(400 / 20)
+        kernel = np.ones(b) / b
+
+        def pad_and_convolve(xx, kernel):
+            npad = len(kernel)
+            xx = np.pad(xx, (npad, npad), "edge")
+            yy = np.convolve(xx, kernel, mode="same")
+            return yy[npad:-npad]
+
+        x = pad_and_convolve(x, kernel)
+        y = pad_and_convolve(y, kernel)
+
+        speed = [0]
+        s_rate = 10 #50 Hz is too fine grained
+        # Perhaps this should be average speed over these
+        for i in range(s_rate * 3 // 2, len(x), s_rate):
+            sp = math.sqrt(
+                (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2) / (3 * 0.02 * s_rate)  
+                # (pixel/s) - 300 pixels per metre * 100 (cm/s)
+            speed.append(sp)
+        # Smooth first?
+        # interpolate back to 50Hz
+        xp = [0.0] + [0.02 * i for i in range(s_rate, len(x), s_rate)]
+        for x_, y_ in zip(xp[:20], speed[:20]):
+            print("{:.2f}: {:.2f}".format(x_, y_))
+        print("-----------")
+        kernel_size = 5
+        kernel = np.array([1 / kernel_size for _ in range(kernel_size)])
+        speed = pad_and_convolve(speed, kernel)
+        for x_, y_ in zip(xp[:20], speed[:20]):
+            print("{:.2f}: {:.2f}".format(x_, y_))
+
+        xs = [0.02 * i for i in range(len(x))]
+        interp_speed = np.interp(xs, xp, speed)
+        kernel_size = 6
+        kernel = np.array([0, 0.2, 0.2, 0.2, 0.2, 0])
+        interp_speed = pad_and_convolve(interp_speed, kernel)        
+
+        # TODO fix this
+        kernel_size = 5
+        half_width = kernel_size / 2
+        xx = np.arange(-half_width, half_width + 1, 1)
+        sigma = kernel_size / 2 / np.sqrt(3)
+        kernel = (0.5 / (np.sqrt(3) * sigma)) * \
+            (np.abs(xx) < np.sqrt(3) * sigma)
+        print(kernel)
+
+        # TEMP
+
+        # 1. Calculate raw speed (not smooth)
+        # 2. TODO try fix mixups in big and small
+        # 3. Calculate instantaneous speed at 50Hz
+        # 4. From this, mark positions as np.nan where speed > 360 cm/s (rat can't run that fast)
+        # 5. Interpolate these positions and box filter over 400ms
+        # 6. Calculate speed at a 10Hz sample rate. Do this calculating the speed at time x by using positions at time x + 0.06, and x - 0.06 (I think?). Want the real time point in the middle.
+        # 7. Box filter these speeds with a box of size 5 (5 samples, 0.2 sec smoothing either side of the actual point)
+        # 8. Interpolate these values to get speed at every time point if needed (50Hz)
+         
+
+        return interp_speed, x, y
 
     def get_angular_pos(self): # Suposing Big Led in the Right side
         
@@ -315,4 +389,3 @@ class RecPos:
         for r, l in zip(R,L):
             angles.append(calc_angle(r, l, d))
         return angles
-    
