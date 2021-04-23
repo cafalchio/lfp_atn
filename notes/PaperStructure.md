@@ -5,6 +5,8 @@ We did a previous study that focused on single-units.
 Here we present more data, and also focus on the LFP signal in SUB and RSC (sometimes CA), as opposed to single-units.
 This revealed that...
 
+## Histology and electrode location
+1st paragraph
 ## Methods
 
 ### Cleaning the signals
@@ -27,17 +29,20 @@ This is in NC.
 
 ## Results
 
-### Open-field recordings in CL
+### Open-field recordings in CL (behaviour - 2)
 Here we investigate band-powers, relationship between speed and phase of LFP signals, etc (e.g. coherence).
 These are compared between control and lesion animals as a whole
 
-### T-maze recordings in CL
+### T-maze recordings in CL (behaviour - 3)
 The decision made by the rat is decoded via Bayes (maybe - or ML), and the decoder accuracy is compared between CL.
+John might have a good suggestion here.
 
-### Sleep in CL
+### Sleep in CL (Shane thinks Prio - 1)
 The power of the LFP signal, and presence of SWRs, is compared between CL.
+Term it as rest in the paper though. ATNx vs ATN.
+This is an obvious one.
 
-### Muscimol recordings
+### Muscimol recordings (4 - probably can go on the side)
 The over time behaviour of the LFP signals are compared under the effects of muscimol, while accounting for speed and lack of exploration differences over time.
 The decoder is also applied to any t-maze data in this.
 

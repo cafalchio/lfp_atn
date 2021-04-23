@@ -6,6 +6,9 @@ https://mne.tools/stable/auto_tutorials/discussions/plot_background_filtering.ht
 ## Filtering concerns - especially related to time
 https://www.frontiersin.org/articles/10.3389/fpsyg.2011.00365/full and its counter https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3391960/
 
+## Rest methods
+https://www.cell.com/current-biology/fulltext/S0960-9822(19)30006-5?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS0960982219300065%3Fshowall%3Dtrue
+
 ## What to report
 On page 45 in Widmann et al. (2015) 7, there is a convenient list of important filter parameters that should be reported with each publication:
 
