@@ -26,22 +26,70 @@ class RecPos:
     """
     This data class contains information about the recording position.
     Read .pos file
+
     To dos:
         * read different numbers of LEDs
         * Adapt to NeuroChat
+        * verbose file reading like TINT (prints info like number of untracked points)
+
     Attributes
     ----------
-    _file_tag : str
-        The tag of the pos data.
+    pos_file : str
+        The path to the position file.
+    x : np.ndarray
+        The x position data
+    y : np.ndarray
+        The y position data
+    speed : np.ndarray
+        The speed in cm/s
+    head_direction : np.ndarray
+        The head direction data
+    raw_position : dict
+        The raw position data decoded from .pos file.
+
+    Parameters
+    ----------
+    file_name : str
+        The path to the .set file or .pos file to load the data from
+    load : bool
+        If file_name is passed, load the data from this
+
     """
 
-    def __init__(self, file_name):
+    def __init__(self, file_name=None, load=True):
+        """See help(RecPos)."""
+        self.pos_file = ""
+        self.x = np.array([])
+        self.y = np.array([])
+        self.speed = np.array([])
+        self.head_direction = np.array([])
+        self.raw_position = {}
+        if file_name is not None:
+            self.set_file(file_name)
+            if load:
+                self.load()
 
-        self.bytes_per_sample = 20  # Axona daqUSB manual
+    def set_file(self, file_name):
+        """Set the input file - can be .pos or .set"""
         file_directory, file_basename = os.path.split(file_name)
         file_tag, file_extension = os.path.splitext(file_basename)
-        file_extension = file_extension[1:]
-        self.pos_file = os.path.join(file_directory, file_tag + ".pos")
+        if file_extension != ".pos":
+            self.pos_file = os.path.join(file_directory, file_tag + ".pos")
+        else:
+            self.pos_file = file_name
+
+    def load(self, file_name=None):
+        """Load data, optionally from given file name."""
+        if file_name is not None:
+            self.set_file(file_name)
+        self.load_raw()
+        self.calculate_position()
+        self.calculate_speed()
+    
+    def load_raw(self):
+        """Load raw position data."""
+        self.bytes_per_sample = 20  # Axona daqUSB manual
+
         if os.path.isfile(self.pos_file):
             with open(self.pos_file, "rb") as f:
                 while True:
@@ -206,6 +254,9 @@ class RecPos:
         return tmp_x, tmp_y
 
     def get_position(self, raw=False):
+        return self.x, self.y
+
+    def calculate_position(self, raw=False):
         # TODO include the checking for big-small mix ups
         # TODO add verbose reading like TINT
         try:
@@ -268,33 +319,31 @@ class RecPos:
 
             x = pad_and_convolve(x, kernel)
             y = pad_and_convolve(y, kernel)
+            
+            self.x = x
+            self.y = y
+            return x, y
 
-            return list(x), list(y)
         except:
             print(f"No position information found in {self.pos_file}")
 
     def get_speed(self):
-        speed = [0]
-        # print('Speed in cm/s')
-        [(bxx, byy), (sxx, syy)] = self.get_position(raw=True)
-        x = list((bxx + sxx) / 2)
-        y = list((byy + syy) / 2)
-        for i in range(1, len(x)):
-            sp = math.sqrt(
-                (x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2) / (3 * 0.02)  
-                # (pixel/s) - 300 pixels per metre * 100 (cm/s)
-            speed.append(sp)
+        return self.speed
 
-        # Try to find jumpy points
-        for i, val in enumerate(np.diff(speed)):
-            if val > 4: # filter instantaneous speed > 3.6 m / s
-                x[i+1] = np.nan
-                y[i+1] = np.nan
-        x = (pd.Series(x).astype(float)).interpolate("linear")
-        y = (pd.Series(y).astype(float)).interpolate("linear")
+    def calculate_speed(self):
+        """
+        Calculate the speed.
 
-        b = int(400 / 20)
-        kernel = np.ones(b) / b
+        Performs as follows:
+        1. Get the box smoothed position data.
+        2. Calculate the speed at 10Hz (real sample rate is 50Hz).
+        2a. Do this calculating the speed at time x by using positions at 
+            time x + 0.1, and x - 0.1. Want the real time point in the middle.
+        4. Interpolate these values to get speed at every time point(50Hz)
+        5. Smooth the interpolated speeds to remove bumps around sample times.
+
+        """
+        x, y = self.get_position()
 
         def pad_and_convolve(xx, kernel):
             npad = len(kernel)
@@ -302,57 +351,26 @@ class RecPos:
             yy = np.convolve(xx, kernel, mode="same")
             return yy[npad:-npad]
 
-        x = pad_and_convolve(x, kernel)
-        y = pad_and_convolve(y, kernel)
-
         speed = [0]
         s_rate = 10 #50 Hz is too fine grained
-        # Perhaps this should be average speed over these
+        duration = len(x) * 0.02
         for i in range(s_rate * 3 // 2, len(x), s_rate):
-            sp = math.sqrt(
-                (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2) / (3 * 0.02 * s_rate)  
-                # (pixel/s) - 300 pixels per metre * 100 (cm/s)
-            speed.append(sp)
-        # Smooth first?
-        # interpolate back to 50Hz
-        xp = [0.0] + [0.02 * i for i in range(s_rate, len(x), s_rate)]
-        for x_, y_ in zip(xp[:20], speed[:20]):
-            print("{:.2f}: {:.2f}".format(x_, y_))
-        print("-----------")
+            pixel_dist = math.sqrt(
+                (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2)
+            # (pixel/s) - 300 pixels per metre * 100 (cm/s)
+            cms_speed = pixel_dist / (3 * 0.02 * s_rate)
+            speed.append(cms_speed)
+        xp = np.arange(0, duration - 0.01, 0.2)
         kernel_size = 5
-        kernel = np.array([1 / kernel_size for _ in range(kernel_size)])
-        speed = pad_and_convolve(speed, kernel)
-        for x_, y_ in zip(xp[:20], speed[:20]):
-            print("{:.2f}: {:.2f}".format(x_, y_))
+        kernel = np.ones(kernel_size) / kernel_size
+        # speed = pad_and_convolve(speed, kernel)
 
-        xs = [0.02 * i for i in range(len(x))]
+        xs = np.arange(0, duration, 0.02)
         interp_speed = np.interp(xs, xp, speed)
-        kernel_size = 6
-        kernel = np.array([0, 0.2, 0.2, 0.2, 0.2, 0])
-        interp_speed = pad_and_convolve(interp_speed, kernel)        
-
-        # TODO fix this
-        kernel_size = 5
-        half_width = kernel_size / 2
-        xx = np.arange(-half_width, half_width + 1, 1)
-        sigma = kernel_size / 2 / np.sqrt(3)
-        kernel = (0.5 / (np.sqrt(3) * sigma)) * \
-            (np.abs(xx) < np.sqrt(3) * sigma)
-        print(kernel)
-
-        # TEMP
-
-        # 1. Calculate raw speed (not smooth)
-        # 2. TODO try fix mixups in big and small
-        # 3. Calculate instantaneous speed at 50Hz
-        # 4. From this, mark positions as np.nan where speed > 360 cm/s (rat can't run that fast)
-        # 5. Interpolate these positions and box filter over 400ms
-        # 6. Calculate speed at a 10Hz sample rate. Do this calculating the speed at time x by using positions at time x + 0.06, and x - 0.06 (I think?). Want the real time point in the middle.
-        # 7. Box filter these speeds with a box of size 5 (5 samples, 0.2 sec smoothing either side of the actual point)
-        # 8. Interpolate these values to get speed at every time point if needed (50Hz)
-         
-
-        return interp_speed, x, y
+        interp_speed = pad_and_convolve(interp_speed, kernel) 
+        
+        self.speed = interp_speed
+        return interp_speed
 
     def get_angular_pos(self): # Suposing Big Led in the Right side
         
