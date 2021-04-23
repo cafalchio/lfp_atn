@@ -11,7 +11,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 def main(file):
     pos = RecPos(file)
     x, y = pos.get_position()
-    speed, x, y = pos.get_speed()
+    speed = pos.get_speed()
 
     spatial = NSpatial(system="Axona")
     spatial.load(file[:-4] + "_3.txt")
@@ -19,7 +19,7 @@ def main(file):
     # Some comparison plots
 
     # Compare position and speed
-    fig, axes = plt.subplots(2, 2)
+    fig, axes = plt.subplots(3, 2)
     fig.tight_layout()
     ax = axes[0][0]
     ax.set_title("Matheus position")
@@ -38,6 +38,14 @@ def main(file):
     ax = axes[1][1]
     ax.set_title("NeuroChaT speed")
     ax.plot(spatial._speed, c="k")
+
+    ax = axes[2][0]
+    ax.set_title("Matheus speed hist")
+    ax.hist(speed, color="k", density=True)
+
+    ax = axes[2][1]
+    ax.set_title("NeuroChaT speed hist")
+    ax.hist(spatial._speed, color="k", density=True)
 
     fig.savefig(os.path.join(here, "compare.png"), dpi=400)
 
