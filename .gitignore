@@ -8,3 +8,5 @@ simuran/sim_results/
 simuran/saved/
 *.db.*
 *.egg-info
+tests/*.png
+tests/*.csv
