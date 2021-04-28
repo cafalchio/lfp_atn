@@ -352,15 +352,16 @@ class RecPos:
             return yy[npad:-npad]
 
         speed = [0]
-        s_rate = 10 #50 Hz is too fine grained
+        s_rate = 5 #50 Hz is too fine grained
+        t_rate = 0.02 * s_rate
         duration = len(x) * 0.02
         for i in range(s_rate * 3 // 2, len(x), s_rate):
             pixel_dist = math.sqrt(
                 (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2)
             # (pixel/s) - 300 pixels per metre * 100 (cm/s)
-            cms_speed = pixel_dist / (3 * 0.02 * s_rate)
+            cms_speed = pixel_dist / (3 * t_rate)
             speed.append(cms_speed)
-        xp = np.arange(0, duration - 0.01, 0.2)
+        xp = np.arange(0, duration - (t_rate // 2), t_rate)
         kernel_size = 5
         kernel = np.ones(kernel_size) / kernel_size
         # speed = pad_and_convolve(speed, kernel)
