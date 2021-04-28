@@ -54,7 +54,6 @@ def lfp_rate(self, lfp_signal, **kwargs):
         <= chop_bound
     ):
         tmap = chop_edges(tmap, min(tmap.shape), min(tmap.shape))[2]
-    tmap /= self.get_sampling_rate()
 
     ybin, xbin = tmap.shape
     xedges = np.arange(xbin) * pixel
@@ -68,7 +67,7 @@ def lfp_rate(self, lfp_signal, **kwargs):
     for i, t in enumerate(time_to_use):
         # TODO consider avg around this point
         lfp_sample = int(t * lfp_signal.get_sampling_rate())
-        lfp_amplitudes[i] = lfp_signal.get_samples()[lfp_sample].value
+        lfp_amplitudes[i] = lfp_signal.get_samples()[lfp_sample].value * 1000
 
     x_idx = np.digitize(posX, xedges) - 1
     y_idx = np.digitize(posY, yedges) - 1
@@ -76,7 +75,6 @@ def lfp_rate(self, lfp_signal, **kwargs):
         binned_lfp[j, i] += lfp_amplitudes[k]
 
     fmap = np.divide(binned_lfp, tmap, out=np.zeros_like(binned_lfp), where=tmap != 0)
-    fmap *= 1000
 
     if brAdjust:
         nfmap = fmap / fmap.max()
