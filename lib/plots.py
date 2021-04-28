@@ -53,9 +53,8 @@ def plot_pos_over_time(x, y, rate=2, save=False):
     time_text = ax.text(0.02, 0.95, "", transform=ax.transAxes)
 
     def init():
-        """TODO incorporate win size."""
-        ax.set_xlim(0, 600)
-        ax.set_ylim(600, 0)
+        ax.set_xlim(0, max(x) + 1)
+        ax.set_ylim(max(y) + 1, 0)
         time_text.set_text("")
         return scatter, time_text
 
