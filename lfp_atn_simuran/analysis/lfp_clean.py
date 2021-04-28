@@ -166,7 +166,7 @@ class LFPClean(object):
             appended_sigs.append(eeg)
 
         if vis:
-            appended_sigs.plot(proj=False)
+            appended_sigs.plot(proj=False, show=show)
 
         return appended_sigs
 

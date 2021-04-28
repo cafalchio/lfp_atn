@@ -4,6 +4,7 @@ from astropy import units as u
 from sklearn.cluster import KMeans
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
+from sklearn.metrics import silhouette_score
 
 
 def detect_outlying_signals(signals):
@@ -22,10 +23,10 @@ def detect_outlying_signals(signals):
 def grouped_powers(recording, **kwargs):
     """Signal power in clusters."""
     s_part = kwargs.get("win_len", 2)
-    n_clusters = kwargs.get("n_clusters", 4)
+    n_clusters = kwargs.get("n_clusters", None)
     step = kwargs.get("step", 0.1)
-    min_f = kwargs.get("min_f", 0.5)
-    max_f = kwargs.get("max_f", 125)
+    min_f = kwargs.get("min_f", 1.0)
+    max_f = kwargs.get("max_f", 100)
     n_features = int(s_part / step)
     cluster_features = np.zeros((len(recording.signals), n_features)) * u.uV
     for i, sig in enumerate(recording.signals):
@@ -33,13 +34,35 @@ def grouped_powers(recording, **kwargs):
             sample = sig.in_range(val, val + 0.1)
             res = np.sum(np.abs(sample))
             cluster_features[i][j] = res
-    cluster = KMeans(n_clusters=n_clusters)
-    cluster.fit(cluster_features)
 
     results = {"clustering": {}}
     sigs = {}
+
+    if n_clusters is None:
+        sc = []
+        for clusts in range(2, 6):
+            cluster = KMeans(n_clusters=clusts, random_state=42)
+            cluster_labels = cluster.fit_predict(cluster_features)
+            sc.append(silhouette_score(cluster_features, cluster_labels))
+        results["silhoeutte"] = sc
+        best_sc, best_id = -1, -1
+        for i in range(4):
+            if sc[i] > best_sc:
+                best_sc, best_id = sc[i], i + 2
+        cluster = KMeans(n_clusters=best_id, random_state=42)
+        cluster_labels = cluster.fit_predict(cluster_features)
+        sc = silhouette_score(cluster_features, cluster_labels)
+        results["silhoeutte_final"] = sc
+        n_clusters = best_id
+
+    else:
+        cluster = KMeans(n_clusters=n_clusters, random_state=42)
+        cluster_labels = cluster.fit_predict(cluster_features)
+        sc = silhouette_score(cluster_features, cluster_labels)
+        results["silhoeutte"] = sc
+
     for i in range(n_clusters):
-        idxs = np.nonzero(cluster.labels_ == i)[0]
+        idxs = np.nonzero(cluster_labels == i)[0]
         sigs[i] = recording.signals.subsample(idxs)
         results["clustering"][i] = [s.channel for s in sigs[i]]
 
@@ -53,9 +76,10 @@ def grouped_powers(recording, **kwargs):
 
 
 def powers(recording, **kwargs):
-    min_f = kwargs.get("min_f", 0.5)
+    # TODO refactor the cleaning
+    min_f = kwargs.get("min_f", 1.0)
     max_f = kwargs.get("max_f", 100)
-    signals = LFPClean.clean_lfp_signals(recording, min_f, max_f)
+    signals = LFPClean.avg_signals(recording.signals, min_f, max_f)
     return signal_powers(signals, **kwargs)
 
 
