@@ -173,10 +173,10 @@ class RecPos:
                             256 * byte_buffer[k + 6] + byte_buffer[k + 7]
                         )  # 6,7 bytes for big LED x
                         little_spotx[i] = int(
-                            256 * byte_buffer[k + 4] + byte_buffer[k + 5]
+                            256 * byte_buffer[k + 8] + byte_buffer[k + 9]
                         )
                         little_spoty[i] = int(
-                            256 * byte_buffer[k + 6] + byte_buffer[k + 7]
+                            256 * byte_buffer[k + 10] + byte_buffer[k + 11]
                         )
 
                     self.raw_position = {
@@ -248,8 +248,8 @@ class RecPos:
         for i in range(1, len(tmp_x)):
             distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
             if distance > threshold:
-                tmp_x[i] = 1023
-                tmp_y[i] = 1023
+                tmp_x[i] = np.nan
+                tmp_y[i] = np.nan
 
         return tmp_x, tmp_y
 
