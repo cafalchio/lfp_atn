@@ -10,6 +10,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 
 def main(file):
     pos = RecPos(file)
+    pos.calculate_speed(num_samples=5, smooth_size=5, smooth=True)
     x, y = pos.get_position()
     speed = pos.get_speed()
 
@@ -33,11 +34,11 @@ def main(file):
     
     ax = axes[1][0]
     ax.set_title("Matheus speed")
-    ax.plot(speed, c="k")
+    ax.plot(speed[:200], c="k")
 
     ax = axes[1][1]
     ax.set_title("NeuroChaT speed")
-    ax.plot(spatial._speed, c="k")
+    ax.plot(spatial._speed[:200], c="k")
 
     ax = axes[2][0]
     ax.set_title("Matheus speed hist")

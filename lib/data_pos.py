@@ -85,7 +85,7 @@ class RecPos:
         self.load_raw()
         self.calculate_position()
         self.calculate_speed()
-    
+
     def load_raw(self):
         """Load raw position data."""
         self.bytes_per_sample = 20  # Axona daqUSB manual
@@ -148,7 +148,7 @@ class RecPos:
                         break
                     else:
                         f.seek(-9, 1)
-                        
+
                 if not header_offset:
                     print("Error: data_start marker not found!")
                 else:
@@ -241,16 +241,16 @@ class RecPos:
         bigy = [value[0] for value in self.raw_position["big_spoty"]]
         return bigx, bigy
 
-    def filter_max_speed(self, x, y, max_speed = 4):  # max speed 4m/s ()
+    def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
-        threshold = max_speed * 300 * 50 # max speed * distance (m) /  50 samples (s)
+        threshold = max_speed * 300 * 50  # max speed * distance (m) /  50 samples (s)
         for i in range(1, len(tmp_x)):
             distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
             if distance > threshold:
                 tmp_x[i] = 1023
                 tmp_y[i] = 1023
-                
+
         return tmp_x, tmp_y
 
     def get_position(self, raw=False):
@@ -301,7 +301,7 @@ class RecPos:
             syy = (pd.Series(syy).astype(float)).interpolate("linear")
             if raw:
                 return [(bxx, byy), (sxx, syy)]
-            
+
             ### Average both LEDs
             x = list((bxx + sxx) / 2)
             y = list((byy + syy) / 2)
@@ -319,7 +319,7 @@ class RecPos:
 
             x = pad_and_convolve(x, kernel)
             y = pad_and_convolve(y, kernel)
-            
+
             self.x = x
             self.y = y
             return x, y
@@ -330,14 +330,14 @@ class RecPos:
     def get_speed(self):
         return self.speed
 
-    def calculate_speed(self):
+    def calculate_speed(self, num_samples=5, smooth_size=5, smooth=True):
         """
         Calculate the speed.
 
         Performs as follows:
         1. Get the box smoothed position data.
         2. Calculate the speed at 10Hz (real sample rate is 50Hz).
-        2a. Do this calculating the speed at time x by using positions at 
+        2a. Do this calculating the speed at time x by using positions at
             time x + 0.1, and x - 0.1. Want the real time point in the middle.
         4. Interpolate these values to get speed at every time point(50Hz)
         5. Smooth the interpolated speeds to remove bumps around sample times.
@@ -352,59 +352,62 @@ class RecPos:
             return yy[npad:-npad]
 
         speed = [0]
-        s_rate = 5 #50 Hz is too fine grained
+        s_rate = num_samples  # 50 Hz is too fine grained
         t_rate = 0.02 * s_rate
         duration = len(x) * 0.02
         for i in range(s_rate * 3 // 2, len(x), s_rate):
             pixel_dist = math.sqrt(
-                (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2)
+                (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2
+            )
             # (pixel/s) - 300 pixels per metre * 100 (cm/s)
             cms_speed = pixel_dist / (3 * t_rate)
             speed.append(cms_speed)
-        xp = np.arange(0, duration - (t_rate // 2), t_rate)
-        kernel_size = 5
-        kernel = np.ones(kernel_size) / kernel_size
-        # speed = pad_and_convolve(speed, kernel)
-
+        xp = np.array(
+            [0.0] + [0.02 * i for i in range(s_rate, len(x) - (s_rate // 2), s_rate)]
+        )
         xs = np.arange(0, duration, 0.02)
+        kernel_size = smooth_size
         interp_speed = np.interp(xs, xp, speed)
-        interp_speed = pad_and_convolve(interp_speed, kernel) 
-        
+
+        if smooth:
+            kernel = np.ones(kernel_size) / kernel_size
+            interp_speed = pad_and_convolve(interp_speed, kernel)
+
         self.speed = interp_speed
         return interp_speed
 
-    def get_angular_pos(self): # Suposing Big Led in the Right side
-        
+    def get_angular_pos(self):  # Suposing Big Led in the Right side
+
         # To do: (Not working)
-            # Check LEDs sides
-            # Fix the function
-            # implement Axona's checks
-                #  no. pixels in big light = 18.35 +/- 8.48
-                #  no. pixels in small light = 10.96 +/- 5.92
-                #  1615 points swapped as 2-light confusions
-        
-        def calc_angle(R, L, d = 12): # d - distance from LEDs in pixels
+        # Check LEDs sides
+        # Fix the function
+        # implement Axona's checks
+        #  no. pixels in big light = 18.35 +/- 8.48
+        #  no. pixels in small light = 10.96 +/- 5.92
+        #  1615 points swapped as 2-light confusions
+
+        def calc_angle(R, L, d=12):  # d - distance from LEDs in pixels
             if R[1] == L[1]:
-                if R[0] > L[0]: 
-                    return 0.
-                return 180.
+                if R[0] > L[0]:
+                    return 0.0
+                return 180.0
             elif R[0] == L[0]:
-                if R[1] > L[1]: 
-                    return 90.
-                return 270.
+                if R[1] > L[1]:
+                    return 90.0
+                return 270.0
             elif R[1] > L[1]:
                 return math.acos((R[0] - L[0]) / d) * 180 / math.pi
             elif R[0] < L[0]:
                 return 90 + math.acos((R[0] - L[0]) / d) * 180 / math.pi
             else:
                 return 360 - math.acos((R[0] - L[0]) / d) * 180 / math.pi
-        
+
         L, R = self.get_position(raw=True)
         d = []
-        for i in range(0, len(R)-1):
-            d.append(((R[i] - R[i+1]) ** 2 + (L[i] - L[i+1])**2)**.5)
+        for i in range(0, len(R) - 1):
+            d.append(((R[i] - R[i + 1]) ** 2 + (L[i] - L[i + 1]) ** 2) ** 0.5)
         d = np.median(np.asarray(d))
         angles = []
-        for r, l in zip(R,L):
+        for r, l in zip(R, L):
             angles.append(calc_angle(r, l, d))
         return angles
