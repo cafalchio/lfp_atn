@@ -139,7 +139,8 @@ class RecPos:
                         info = line.split(" ")[-1]
                         if info[:-2] != "t,x1,y1,x2,y2,numpix1,numpix2":
                             logging.error(
-                                ".pos reading only supports 2-spot mode currently")
+                                ".pos reading only supports 2-spot mode currently"
+                            )
                             print(info[:-2])
                             print("t,x1,y1,x2,y2,numpix1,numpix2")
                             return
@@ -245,12 +246,16 @@ class RecPos:
     def get_raw_pos(self):
         bigx = [value[0] for value in self.raw_position["big_spotx"]]
         bigy = [value[0] for value in self.raw_position["big_spoty"]]
-        return bigx, bigy
+        smallx = [value[0] for value in self.raw_position["little_spotx"]]
+        smally = [value[0] for value in self.raw_position["little_spoty"]]
+        return bigx, bigy, smallx, smally
 
     def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
-        threshold = max_speed * self.pixels_per_metre * 50  # max speed * distance (m) /  50 samples (s)
+        threshold = (
+            max_speed * self.pixels_per_metre * 50
+        )  # max speed * distance (m) /  50 samples (s)
         for i in range(1, len(tmp_x)):
             distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
             if distance > threshold:
@@ -260,7 +265,10 @@ class RecPos:
         return tmp_x, tmp_y
 
     def get_position(self, raw=False):
-        return self.x, self.y
+        if not raw:
+            return self.x, self.y
+        else:
+            return self.get_raw_pos()
 
     def calculate_position(self, raw=False):
         # TODO include the checking for big-small mix ups
@@ -325,6 +333,30 @@ class RecPos:
 
             x = pad_and_convolve(x, kernel)
             y = pad_and_convolve(y, kernel)
+
+            if np.count_nonzero(np.isnan(x)) != 0:
+                num_start_nan = 0
+                for val in x:
+                    if np.isnan(val):
+                        num_start_nan += 1
+                    else:
+                        break
+                if num_start_nan != 0:
+                    np.put(x, np.arange(0, num_start_nan, 1), x[num_start_nan])
+                    np.put(y, np.arange(0, num_start_nan, 1), y[num_start_nan])
+
+            if np.count_nonzero(np.isnan(x)) != 0:
+                num_end_nan = 0
+                for val in x[::-1]:
+                    if np.isnan(val):
+                        num_end_nan += 1
+                    else:
+                        break
+                from_end = len(x) - num_end_nan
+                back = num_end_nan + 1
+                if num_end_nan != 0:
+                    np.put(x, np.arange(from_end, len(x), 1), x[-back])
+                    np.put(y, np.arange(from_end, len(x), 1), y[-back])
 
             self.x = x
             self.y = y
