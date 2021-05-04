@@ -9,6 +9,35 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
 
+from lfp_atn_simuran.analysis.lfp_clean import LFPClean
+from simuran import SimuranFigure
+
+def lfp_rate_recording(recording, base_dir, figures, **kwargs):
+    min_f = kwargs.get("min_f", 1.0)
+    max_f = kwargs.get("max_f", 100)
+    save_format = kwargs.get("save_format", "png")
+    region_sigs = LFPClean.avg_signals(recording.signals, min_f, max_f)
+    save_name = recording.get_name_for_save(rel_dir=base_dir)
+
+    results = {}
+    
+    fig, ax = plt.subplots(2, 1)
+    for i, (region, signal) in enumerate(region_sigs.items()):
+        spatial = recording.spatial.underlying
+        data = lfp_rate(spatial, signal)
+        lfp_rate_plot(data, ax=ax[i])
+        ax[i].set_title(region)
+        nc_results = spatial.get_results()
+        for name, value in nc_results.items():
+            results[f"{region}--{name}"] = value
+        spatial.reset_results()
+    
+    fig.tight_layout()
+    out_name = f"{save_name}--lfp_rate"
+    figures.append(
+        SimuranFigure(fig, out_name, dpi=300, format=save_format, done=True))
+    
+    return results
 
 def lfp_rate(self, lfp_signal, **kwargs):
     """Calculate LFP rate map."""
