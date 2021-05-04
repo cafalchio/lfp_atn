@@ -80,6 +80,7 @@ def setup_loader():
     # Keyword arguments to pass to the loader.
     loader_kwargs = {
         "system": "Axona",
+        "pos_extension": ".pos",
     }
 
     output_dict = {
