@@ -4,7 +4,7 @@ import os
 
 # Where to start running batch analysis from
 start_dir = os.path.abspath(
-    os.path.join("__dirname__", "..", "..", "CSubRet3_sham", "recording")
+    os.path.join("__dirname__", "CSubRet3_sham", "recording")
 )
 
 # regex_filters should be a list of regex patterns to match against.

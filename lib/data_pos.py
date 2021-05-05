@@ -1,4 +1,5 @@
 import os
+import logging
 from shapely.geometry import Point, Polygon
 import pandas as pd
 import numpy as np
@@ -131,8 +132,18 @@ class RecPos:
                         self.bytes_per_coord = int(line.split()[1])
                     if line.startswith("pixels_per_metre"):
                         self.pixels_per_metre = int(line.split()[1])
+                        self.pixels_per_cm = self.pixels_per_metre / 100
                     if line.startswith("num_pos_samples"):
                         self.total_samples = int(line.split()[1])
+                    if line.startswith("pos_format"):
+                        info = line.split(" ")[-1]
+                        if info[:-2] != "t,x1,y1,x2,y2,numpix1,numpix2":
+                            logging.error(
+                                ".pos reading only supports 2-spot mode currently"
+                            )
+                            print(info[:-2])
+                            print("t,x1,y1,x2,y2,numpix1,numpix2")
+                            return
                     if line.startswith("data_start"):
                         break
 
@@ -154,9 +165,6 @@ class RecPos:
                 else:
                     f.seek(header_offset, 0)
                     byte_buffer = np.fromfile(f, dtype="uint8")
-                    len_bytebuffer = len(byte_buffer)
-                    end_offset = len("\r\ndata_end\r")
-                    num_samples = int(len((byte_buffer) - end_offset) / 20)
                     big_spotx = np.zeros([self.total_samples, 1])
                     big_spoty = np.zeros([self.total_samples, 1])
                     little_spotx = np.zeros([self.total_samples, 1])
@@ -165,7 +173,6 @@ class RecPos:
                     for i, k in enumerate(
                         np.arange(0, self.total_samples * 20, 20)
                     ):  # Extract bytes from 20 bytes words
-                        byte_offset = k
                         big_spotx[i] = int(
                             256 * byte_buffer[k + 4] + byte_buffer[k + 5]
                         )  # 4,5 bytes for big LED x
@@ -239,12 +246,16 @@ class RecPos:
     def get_raw_pos(self):
         bigx = [value[0] for value in self.raw_position["big_spotx"]]
         bigy = [value[0] for value in self.raw_position["big_spoty"]]
-        return bigx, bigy
+        smallx = [value[0] for value in self.raw_position["little_spotx"]]
+        smally = [value[0] for value in self.raw_position["little_spoty"]]
+        return bigx, bigy, smallx, smally
 
     def filter_max_speed(self, x, y, max_speed=4):  # max speed 4m/s ()
         tmp_x = x.copy()
         tmp_y = y.copy()
-        threshold = max_speed * 300 * 50  # max speed * distance (m) /  50 samples (s)
+        threshold = (
+            max_speed * self.pixels_per_metre * 50
+        )  # max speed * distance (m) /  50 samples (s)
         for i in range(1, len(tmp_x)):
             distance = math.sqrt((x[i] - x[i - 1]) ** 2 + (y[i] - y[i - 1]) ** 2)
             if distance > threshold:
@@ -254,7 +265,10 @@ class RecPos:
         return tmp_x, tmp_y
 
     def get_position(self, raw=False):
-        return self.x, self.y
+        if not raw:
+            return self.x, self.y
+        else:
+            return self.get_raw_pos()
 
     def calculate_position(self, raw=False):
         # TODO include the checking for big-small mix ups
@@ -320,8 +334,32 @@ class RecPos:
             x = pad_and_convolve(x, kernel)
             y = pad_and_convolve(y, kernel)
 
-            self.x = x
-            self.y = y
+            if np.count_nonzero(np.isnan(x)) != 0:
+                num_start_nan = 0
+                for val in x:
+                    if np.isnan(val):
+                        num_start_nan += 1
+                    else:
+                        break
+                if num_start_nan != 0:
+                    np.put(x, np.arange(0, num_start_nan, 1), x[num_start_nan])
+                    np.put(y, np.arange(0, num_start_nan, 1), y[num_start_nan])
+
+            if np.count_nonzero(np.isnan(x)) != 0:
+                num_end_nan = 0
+                for val in x[::-1]:
+                    if np.isnan(val):
+                        num_end_nan += 1
+                    else:
+                        break
+                from_end = len(x) - num_end_nan
+                back = num_end_nan + 1
+                if num_end_nan != 0:
+                    np.put(x, np.arange(from_end, len(x), 1), x[-back])
+                    np.put(y, np.arange(from_end, len(x), 1), y[-back])
+
+            self.x = x / self.pixels_per_cm
+            self.y = y / self.pixels_per_cm
             return x, y
 
         except:
@@ -356,11 +394,11 @@ class RecPos:
         t_rate = 0.02 * s_rate
         duration = len(x) * 0.02
         for i in range(s_rate * 3 // 2, len(x), s_rate):
-            pixel_dist = math.sqrt(
+            cm_dist = math.sqrt(
                 (x[i] - x[i - s_rate]) ** 2 + (y[i] - y[i - s_rate]) ** 2
             )
             # (pixel/s) - 300 pixels per metre * 100 (cm/s)
-            cms_speed = pixel_dist / (3 * t_rate)
+            cms_speed = cm_dist / t_rate
             speed.append(cms_speed)
         xp = np.array(
             [0.0] + [0.02 * i for i in range(s_rate, len(x) - (s_rate // 2), s_rate)]
