@@ -71,6 +71,9 @@ def set_fixed_params(in_dict):
     # For example, this could be used to concatenate
     # EEG signals that were recorded in two second long trials
     in_dict["keep_all_data"] = False
+
+    # What data to merge
+    in_dict["to_merge"] = ["simuran_lfp_rate"]
     return in_dict
 
 
