@@ -10,3 +10,4 @@ simuran/saved/
 *.egg-info
 tests/*.png
 tests/*.csv
+*sim_results*
