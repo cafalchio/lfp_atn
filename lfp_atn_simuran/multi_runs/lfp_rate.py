@@ -37,7 +37,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_plot_lfp.py"
+                    "__thisdirname__", "..", "functions", "simuran_lfp_rate.py"
                 ),
                 "CSR{}".format(val),
             )
@@ -50,7 +50,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_plot_lfp.py"
+                    "__thisdirname__", "..", "functions", "simuran_lfp_rate.py"
                 ),
                 "LSR{}".format(val),
             )
@@ -71,8 +71,6 @@ def set_fixed_params(in_dict):
     # For example, this could be used to concatenate
     # EEG signals that were recorded in two second long trials
     in_dict["keep_all_data"] = False
-
-    in_dict["to_merge"] = ["simuran_plot_lfp"]
     return in_dict
 
 

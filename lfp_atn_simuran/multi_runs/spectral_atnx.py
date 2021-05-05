@@ -34,10 +34,10 @@ def set_file_locations():
         output.append(
             (
                 os.path.join(
-                    "__dirname__", "..", "batch_params", "CSR{}-openfield.py"
+                    "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__dirname__", "..", "functions", "simuran_theta_power.py"
+                    "__thisdirname__", "..", "functions", "simuran_theta_power.py"
                 ),
                 "CSR{}".format(val),
             )
@@ -47,10 +47,10 @@ def set_file_locations():
         output.append(
             (
                 os.path.join(
-                    "__dirname__", "..", "batch_params", "LSR{}-openfield.py"
+                    "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__dirname__", "..", "functions", "simuran_theta_power.py"
+                    "__thisdirname__", "..", "functions", "simuran_theta_power.py"
                 ),
                 "LSR{}".format(val),
             )

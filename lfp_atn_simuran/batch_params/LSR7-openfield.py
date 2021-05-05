@@ -3,7 +3,7 @@
 import os
 
 # Where to start running batch analysis from
-start_dir = os.path.abspath(os.path.join("__dirname__", "..", "..", "LSR7"))
+start_dir = os.path.abspath(os.path.join("__dirname__", "LSR7"))
 
 # regex_filters should be a list of regex patterns to match against.
 regex_filters = ["^screening.*/.*[1-9]$"]
