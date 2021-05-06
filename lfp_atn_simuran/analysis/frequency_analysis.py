@@ -67,7 +67,8 @@ def grouped_powers(recording, **kwargs):
         results["clustering"][i] = [s.channel for s in sigs[i]]
 
     for i in range(n_clusters):
-        avg_sig = LFPClean.avg_signals(sigs[i], min_f, max_f)
+        lc = LFPClean()
+        avg_sig = lc.clean(sigs[i], min_f, max_f)
         res = signal_powers(avg_sig, **kwargs)
         for k, v in res.items():
             results[f"Cluster {i} -- {k}"] = v
@@ -79,7 +80,8 @@ def powers(recording, **kwargs):
     # TODO refactor the cleaning
     min_f = kwargs.get("min_f", 1.0)
     max_f = kwargs.get("max_f", 100)
-    signals = LFPClean.avg_signals(recording.signals, min_f, max_f)
+    lc = LFPClean()
+    signals = lc.clean(recording.signals, min_f, max_f)
     return signal_powers(signals, **kwargs)
 
 
