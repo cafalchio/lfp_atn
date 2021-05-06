@@ -6,7 +6,7 @@ import numpy as np
 import simuran
 
 
-def detect_outlying_signals(signals, z_threshold=3):
+def detect_outlying_signals(signals, z_threshold=1.1):
     """
     Detect signals that are outliers from the average.
 
@@ -42,7 +42,7 @@ def detect_outlying_signals(signals, z_threshold=3):
     z_score_means = np.nanmean(z_score_abs, axis=1)
 
     # TODO test this more
-    z_threshold = 1.1 * np.median(z_score_means)
+    z_threshold = z_threshold * np.median(z_score_means)
 
     good, bad = [], []
     for i, val in enumerate(z_score_means):
@@ -51,15 +51,13 @@ def detect_outlying_signals(signals, z_threshold=3):
         else:
             good.append(i)
 
-    good_signals = [signals[i] for i in good]
-    bad_signals = [signals[i] for i in bad]
+    good_signals = np.array([signals[i] for i in good])
+    bad_signals = np.array([signals[i] for i in bad])
 
     return good_signals, bad_signals, good, bad
 
 
-def clean_and_average_signals(
-    signals, z_threshold=3, verbose=False
-):
+def average_signals(signals, z_threshold=1.1, verbose=False, clean=True):
     """
     Clean and average a set of signals.
 
@@ -73,7 +71,7 @@ def clean_and_average_signals(
         Butter filter parameters.
     z_threshold : float, optional.
         The threshold for the mean signal z-score to be an outlier.
-        Defaults to 3.
+        Defaults to 1.1. This means z > 1.1 * z.median is outlier.
     verbose : bool, optional.
         Whether to print further information, defaults to False.
 
@@ -89,12 +87,17 @@ def clean_and_average_signals(
         signals_ = signals
 
     # 1. Try to identify dead channels
-    good_signals, bad_signals, good_idx, bad_idx = detect_outlying_signals(
-        signals_, z_threshold=z_threshold
-    )
-    if verbose:
-        if len(bad_idx) != 0:
-            print("Excluded {} signals with indices {}".format(len(bad_idx), bad_idx))
+    if clean:
+        good_signals, bad_signals, good_idx, bad_idx = detect_outlying_signals(
+            signals_, z_threshold=z_threshold
+        )
+        if verbose:
+            if len(bad_idx) != 0:
+                print(
+                    "Excluded {} signals with indices {}".format(len(bad_idx), bad_idx)
+                )
+    else:
+        good_signals = signals
 
     # 1a. Consider trying to remove noise per channel? Or after avg?
 
@@ -140,7 +143,28 @@ class LFPClean(object):
         self.visualise = visualise
         self.show_vis = show_vis
 
-    def clean(self, data, min_f=None, max_f=None, **filter_kwargs):
+    def compare_methods(self, methods, data, min_f, max_f, **filter_kwargs):
+        results = {}
+        temp = self.visualise
+        for method in methods:
+            self.method = method
+            self.visualise = False
+            result = self.clean(data, min_f, max_f, **filter_kwargs)["signals"]
+            for k, v in result.items():
+                v.set_channel(method[:5])
+                results[f"{method}-{k}"] = v
+        self.visualise = temp
+
+        if isinstance(data, simuran.Recording):
+            signals = data.signals
+        else:
+            signals = data
+
+        fig = self.vis_cleaning(results, signals)
+
+        return fig
+
+    def clean(self, data, min_f=None, max_f=None, method_kwargs=None, **filter_kwargs):
         """
         Clean the lfp signals.
 
@@ -152,12 +176,11 @@ class LFPClean(object):
 
         Returns
         -------
-        dict with keys as regions as vals as eeg_sigs
-        or simuran.EegArray
-
-        second return val is fig if vis is True and show_vis is False
+        dict with keys "signals", "fig"
 
         """
+        if method_kwargs is None:
+            method_kwargs = {}
         if isinstance(data, simuran.Recording):
             signals = data.signals
         else:
@@ -168,17 +191,28 @@ class LFPClean(object):
             signals = self.filter_sigs(signals, min_f, max_f, **filter_kwargs)
 
         if self.method == "avg":
-            result = self.avg_method(signals, min_f, max_f, **filter_kwargs)
+            z_threshold = method_kwargs.get("z_threshold", 1.1)
+            result = self.avg_method(
+                signals,
+                min_f,
+                max_f,
+                clean=True,
+                z_threshold=z_threshold,
+                **filter_kwargs,
+            )
+        elif self.method == "avg_raw":
+            result = self.avg_method(
+                signals, min_f, max_f, clean=False, **filter_kwargs
+            )
         else:
             logging.warning(f"{self.method} is not a valid clean method, using avg")
 
+        results = {"signals": result, "fig": None}
         if self.visualise:
             fig = self.vis_cleaning(result, signals)
-            if not self.show_vis:
-                return result, fig
+            results["fig"] = fig
 
-        else:
-            return result
+        return results
 
     def vis_cleaning(self, result, signals):
         if isinstance(result, dict):
@@ -197,18 +231,21 @@ class LFPClean(object):
 
         return fig
 
-    def avg_method(self, signals, min_f, max_f, **filter_kwargs):
+    def avg_method(
+        self, signals, min_f, max_f, clean=True, z_threshold=1.1, **filter_kwargs
+    ):
         lfp_signals = signals
 
         signals_grouped_by_region = lfp_signals.split_into_groups("region")
 
         output_dict = OrderedDict()
 
-        for region, (signals, idxs) in signals_grouped_by_region.items():
-            val = clean_and_average_signals(
+        for region, (signals, _) in signals_grouped_by_region.items():
+            val = average_signals(
                 [s.samples for s in signals],
-                signals[0].sampling_rate,
+                z_threshold=z_threshold,
                 verbose=True,
+                clean=clean,
             )
             eeg = simuran.Eeg()
             eeg.from_numpy(val, sampling_rate=signals[0].sampling_rate)
