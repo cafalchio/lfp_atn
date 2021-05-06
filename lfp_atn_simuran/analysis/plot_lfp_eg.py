@@ -6,6 +6,19 @@ import matplotlib.pyplot as plt
 
 from simuran.plot.figure import SimuranFigure
 from neurochat.nc_utils import butter_filter
+from lfp_atn_simuran.analysis.lfp_clean import LFPClean
+
+
+def mne_plot(recording, figures, base_dir):
+    lc = LFPClean(method="avg", visualise=True, show_vis=False)
+    result = lc.clean(recording, min_f=1, max_f=100)
+    fig = result["fig"]
+
+    location = os.path.splitext(recording.source_file)[0]
+    out_name = "--".join(
+        os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep)
+    )
+    figures.append(SimuranFigure(fig, out_name, dpi=100, format="png", done=True))
 
 
 def get_normalised_diff(s1, s2):

@@ -9,9 +9,9 @@ def setup_functions():
 
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    import plot_lfp_eg as eg
+    from plot_lfp_eg import mne_plot
 
-    functions = [eg.main]
+    functions = [mne_plot]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -45,7 +45,7 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {"main": ([figures, recording_container.base_dir], {})}
+        arguments = {"mne_plot": ([figures, recording_container.base_dir], {})}
         return arguments
 
     return functions, argument_handler
@@ -76,10 +76,10 @@ def setup_output():
     """Establish what results of the functions will be saved."""
 
     # This should list the results to save to a csv
-    save_list = [("results", "main", "rsc"), ("results", "main", "sub")]
+    save_list = []
 
     # You can name each of these outputs
-    output_names = ["RSC difference", "SUB difference"]
+    output_names = []
 
     return save_list, output_names
 
