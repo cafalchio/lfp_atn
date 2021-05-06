@@ -4,6 +4,7 @@ import logging
 
 import numpy as np
 import simuran
+from mne.preprocessing import ICA
 
 
 def detect_outlying_signals(signals, z_threshold=1.1):
@@ -204,6 +205,8 @@ class LFPClean(object):
             result = self.avg_method(
                 signals, min_f, max_f, clean=False, **filter_kwargs
             )
+        elif self.method == "ica":
+            result = self.ica_method(signals)
         else:
             logging.warning(f"{self.method} is not a valid clean method, using avg")
 
@@ -255,6 +258,85 @@ class LFPClean(object):
             output_dict[region] = eeg
 
         return output_dict
+
+    def ica_method(self, signals, exclude=None):
+        # mne_array, regions, chans_to_plot=20, base_name="", exclude=None
+
+        skip_plots = not self.visualise
+        if not isinstance(signals, simuran.EegArray):
+            eeg_array = simuran.EegArray()
+            eeg_array.set_container([simuran.Eeg(signal=eeg) for eeg in signals])
+
+        regions = list(set([s.region for s in signals]))
+
+        mne_array = signals.convert_signals_to_mne(verbose=False)
+        ica = ICA(method="fastica", random_state=42)
+        ica.fit(mne_array)
+
+        if exclude is None:
+            # Plot raw ICAs
+            ica.plot_sources(mne_array)
+
+            # Overlay ICA cleaned signal over raw. Seperate plot for each region.
+            # TODO Add scroll bar or include window selection option.
+            cont = input("Plot region overlay? (y|n) \n")
+            if cont.strip().lower() == "y":
+                reg_grps = []
+                for reg in regions:
+                    temp_grp = []
+                    for ch in mne_array.info.ch_names:
+                        if reg in ch:
+                            temp_grp.append(ch)
+                    reg_grps.append(temp_grp)
+                for grps in reg_grps:
+                    ica.plot_overlay(
+                        mne_array,
+                        stop=int(30 * 250),
+                        title="{}".format(grps[0][:3]),
+                        picks=grps,
+                    )
+        else:
+            # ICAs to exclude
+            ica.exclude = exclude
+            if not skip_plots:
+                ica.plot_sources(mne_array)
+        # Apply ICA exclusion
+        reconst_raw = mne_array.copy()
+        exclude_raw = mne_array.copy()
+        print("ICAs excluded: ", ica.exclude)
+        ica.apply(reconst_raw)
+
+        if not skip_plots:
+            # change exclude to all except chosen ICs
+            all_ICs = list(range(ica.n_components_))
+            for i in ica.exclude:
+                all_ICs.remove(i)
+            ica.exclude = all_ICs
+            ica.apply(exclude_raw)
+
+            # Plot excluded ICAs
+            exclude_raw.plot(
+                block=True,
+                show=True,
+                clipping="transparent",
+                duration=50,
+                title="Excluded ICs from {}".format(signals[0].source_file),
+                remove_dc=False,
+                scalings=dict(eeg=350e-6),
+            )
+
+            # Plot reconstructed signals w/o excluded ICAs
+            reconst_raw.plot(
+                block=True,
+                show=True,
+                clipping="transparent",
+                duration=50,
+                title="Reconstructed LFP Data from {}".format(signals[0].source_file),
+                remove_dc=False,
+                scalings=dict(eeg=350e-6),
+            )
+
+        return reconst_raw
 
     def filter_sigs(self, signals, min_f, max_f, **filter_kwargs):
         eeg_array = simuran.EegArray()
