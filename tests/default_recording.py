@@ -10,7 +10,7 @@ def recording_info():
         num_signals = 32
 
         # What brain region each signal was recorded from
-        regions = ["RSC"] * 2 + ["SUB"] * 30
+        regions = ["SUB"] * 2 + ["RSC"] * 2 + ["SUB"] * 28
 
         # If the wires were bundled, or any other kind of grouping existed
         # If no grouping, groups = [i for i in range(num_signals)]
