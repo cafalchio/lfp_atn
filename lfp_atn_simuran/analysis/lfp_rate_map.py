@@ -1,47 +1,60 @@
 """Find the rate map of LFP in open-field."""
 import logging
+from copy import deepcopy
 
 import numpy as np
 from collections import OrderedDict as oDict
 from neurochat.nc_utils import chop_edges, histogram2d, smooth_2d
 from neurochat.nc_plot import _make_ax_if_none
+from neurochat.nc_utils import butter_filter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcol
+from math import floor, ceil
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 from simuran import SimuranFigure
 
+
 def lfp_rate_recording(recording, base_dir, figures, **kwargs):
+    # TODO fix to also clean
     min_f = kwargs.get("min_f", 1.0)
     max_f = kwargs.get("max_f", 100)
+    low_f = kwargs.get("low_f", 7)
+    high_f = kwargs.get("high_f", 12)
+    # TODO Make clear that one is cleaning and the other for analysis
     save_format = kwargs.get("save_format", "png")
     region_sigs = LFPClean.avg_signals(recording.signals, min_f, max_f)
     save_name = recording.get_name_for_save(rel_dir=base_dir)
 
     results = {}
-    
+
     fig, ax = plt.subplots(2, 1)
     for i, (region, signal) in enumerate(region_sigs.items()):
         spatial = recording.spatial.underlying
-        data = lfp_rate(spatial, signal)
+        data = lfp_rate(
+            spatial,
+            signal,
+            low_f=low_f,
+            high_f=high_f,
+            filter_kwargs={"verbose": "WARNING"},
+        )
         lfp_rate_plot(data, ax=ax[i])
-        ax[i].set_title(region)
+        ax[i].set_title(f"{region}: {low_f}-{high_f} Hz")
         nc_results = spatial.get_results()
         for name, value in nc_results.items():
             results[f"{region}--{name}"] = value
         spatial.reset_results()
-    
+
     fig.tight_layout()
     out_name = f"{save_name}--lfp_rate"
-    figures.append(
-        SimuranFigure(fig, out_name, dpi=300, format=save_format, done=True))
-    
+    figures.append(SimuranFigure(fig, out_name, dpi=300, format=save_format, done=True))
+
     return results
 
-def lfp_rate(self, lfp_signal, **kwargs):
-    """Calculate LFP rate map."""
 
+def lfp_rate(self, lfp_signal, low_f=None, high_f=None, filter_kwargs=None, **kwargs):
+    """Calculate LFP rate map."""
     _results = oDict()
     graph_data = {}
     update = kwargs.get("update", True)
@@ -49,11 +62,26 @@ def lfp_rate(self, lfp_signal, **kwargs):
     chop_bound = kwargs.get("chop_bound", 5)
     filttype, filtsize = kwargs.get("filter", ["b", 5])
     lim = kwargs.get("range", [0, self.get_duration()])
-    brAdjust = kwargs.get("brAdjust", True)
+    brAdjust = kwargs.get("brAdjust", False)
     # Can pass another NData object to estimate the border from
     # Can be useful in some cases, such as when the animal
     # only explores a subset of the arena.
     separate_border_data = kwargs.get("separateBorderData", None)
+    samples_per_sec = kwargs.get("samplesPerSec", 10)
+
+    if low_f is not None:
+        if filter_kwargs is None:
+            filter_kwargs = {}
+        try:
+            lfp_signal = lfp_signal.filter(low_f, high_f, **filter_kwargs)
+        except BaseException:
+            lfp_signal = deepcopy(lfp_signal)
+            _filt = [10, low_f, high_f, "bandpass"]
+            lfp_signal.set_samples(
+                butter_filter(
+                    lfp_signal.get_samples(), lfp_signal.get_sampling_rate(), _filt
+                )
+            )
 
     if separate_border_data is not None:
         self.set_border(separate_border_data.calc_border(**kwargs))
@@ -74,6 +102,14 @@ def lfp_rate(self, lfp_signal, **kwargs):
     posY = self._pos_y[
         np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
     ]
+    time_to_use = self.get_time()[
+        np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
+    ]
+    skip_rate = int(self.get_sampling_rate() / samples_per_sec)
+    slicer = slice(skip_rate, -skip_rate, skip_rate)
+    posX = posX[slicer]
+    posY = posY[slicer]
+    time_to_use = time_to_use[slicer]
 
     tmap, yedges, xedges = histogram2d(posY, posX, yedges, xedges)
 
@@ -89,14 +125,31 @@ def lfp_rate(self, lfp_signal, **kwargs):
     yedges = np.arange(ybin) * pixel
 
     binned_lfp = np.zeros_like(tmap)
-    time_to_use = self.get_time()[
-        np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
-    ]
+
     lfp_amplitudes = np.zeros_like(time_to_use)
+    lfp_samples = lfp_signal.get_samples()
+    do_once = True
+
+    # Want value in mv
+    if hasattr(lfp_samples, "unit"):
+        import astropy.units as u
+
+        lfp_samples = lfp_samples.to(u.uV).value
+    else:
+        lfp_samples = lfp_samples * 1000
+
     for i, t in enumerate(time_to_use):
-        # TODO consider avg around this point
-        lfp_sample = int(t * lfp_signal.get_sampling_rate())
-        lfp_amplitudes[i] = lfp_signal.get_samples()[lfp_sample].value * 1000
+        low_sample = floor((t - 0.05) * lfp_signal.get_sampling_rate())
+        high_sample = ceil((t + 0.05) * lfp_signal.get_sampling_rate())
+        if high_sample < len(lfp_samples):
+            lfp_amplitudes[i] = np.mean(lfp_samples[low_sample : high_sample + 1])
+        elif do_once:
+            logging.warning(
+                "Position data ({}s) is longer than EEG data ({}s)".format(
+                    time_to_use[-1], len(lfp_samples) / lfp_signal.get_sampling_rate()
+                )
+            )
+            do_once = False
 
     x_idx = np.digitize(posX, xedges) - 1
     y_idx = np.digitize(posY, yedges) - 1
@@ -104,6 +157,10 @@ def lfp_rate(self, lfp_signal, **kwargs):
         binned_lfp[j, i] += lfp_amplitudes[k]
 
     fmap = np.divide(binned_lfp, tmap, out=np.zeros_like(binned_lfp), where=tmap != 0)
+    rate_tmap = tmap / samples_per_sec
+    ps_fmap = np.divide(
+        binned_lfp, rate_tmap, out=np.zeros_like(binned_lfp), where=rate_tmap != 0
+    )
 
     if brAdjust:
         nfmap = fmap / fmap.max()
@@ -117,14 +174,15 @@ def lfp_rate(self, lfp_signal, **kwargs):
 
     if filttype is not None:
         smoothMap = smooth_2d(fmap, filttype, filtsize)
+        smoothMap2 = smooth_2d(ps_fmap, filttype, filtsize)
     else:
         smoothMap = fmap
 
     if update:
-        _results["Spatial Skaggs"] = self.skaggs_info(fmap, tmap)
-        _results["Spatial Sparsity"] = self.spatial_sparsity(fmap, tmap)
+        _results["Spatial Skaggs"] = self.skaggs_info(np.abs(ps_fmap), rate_tmap)
+        _results["Spatial Sparsity"] = self.spatial_sparsity(np.abs(ps_fmap), rate_tmap)
         _results["Spatial Coherence"] = np.corrcoef(
-            fmap[tmap != 0].flatten(), smoothMap[tmap != 0].flatten()
+            ps_fmap[rate_tmap != 0].flatten(), smoothMap2[rate_tmap != 0].flatten()
         )[0, 1]
         _results["Peak Firing Rate"] = fmap.max()
         self.update_result(_results)

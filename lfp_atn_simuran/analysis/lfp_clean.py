@@ -32,13 +32,18 @@ def detect_outlying_signals(signals, z_threshold=3):
     """
     avg_sig = np.mean(signals, axis=0)
     std_sig = np.std(signals, axis=0)
+    # Use this with axis = 0 for per signal
+    std_sig = np.where(std_sig==0, 1, std_sig)
 
     z_score_abs = np.zeros(shape=(len(signals), len(signals[0])))
 
     for i, s in enumerate(signals):
         z_score_abs[i] = np.abs(s - avg_sig) / std_sig
 
-    z_score_means = np.mean(z_score_abs, axis=1)
+    z_score_means = np.nanmean(z_score_abs, axis=1)
+
+    # TODO test this more
+    z_threshold = 1.2 * np.median(z_score_means)
 
     good, bad = [], []
     for i, val in enumerate(z_score_means):

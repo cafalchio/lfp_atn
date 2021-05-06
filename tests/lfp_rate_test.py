@@ -54,14 +54,23 @@ def fake_sig_version():
     plt.close(fig)
 
 
-def main():
+def main(low_f, high_f):
     recording = load_recording()
     nc_spatial = recording.spatial.underlying
     sigs = LFPClean.avg_signals(recording.signals, min_f=0.1, max_f=100)
     time = nc_spatial.get_duration()  # time in seconds
     rate1 = int(time * nc_spatial.get_sampling_rate())
     for region, signal in sigs.items():
-        data = lfp_rate(nc_spatial, signal, range=(0, time), pixel=3)
+        data = lfp_rate(
+            nc_spatial,
+            signal,
+            low_f=low_f,
+            high_f=high_f,
+            range=(0, time),
+            pixel=3,
+            filter_kwargs={"verbose": "WARNING"},
+            filter=["b", 5]
+        )
         fig, ax = plt.subplots()
         lfp_rate_plot(data, ax=ax)
         fig.savefig(os.path.join(here, f"{region}_lfp_rate.png"), dpi=400)
@@ -76,5 +85,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    fake_sig_version()
+    low_f_ = 1.5
+    high_f_ = 4.0
+    main(low_f_, high_f_)
+    # fake_sig_version()

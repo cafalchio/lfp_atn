@@ -45,6 +45,7 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
+        # TODO update to run each freq band in one go
         fn_args = (recording_container.base_dir, figures)
         fn_kwargs = {"save_format": "png"}
         arguments = {"lfp_rate_recording": (fn_args, fn_kwargs)}
