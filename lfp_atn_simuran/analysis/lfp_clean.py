@@ -180,6 +180,7 @@ class LFPClean(object):
         dict with keys "signals", "fig"
 
         """
+        results = {"signals": None, "fig": None, "cleaned": None}
         if method_kwargs is None:
             method_kwargs = {}
         if isinstance(data, simuran.Recording):
@@ -206,11 +207,12 @@ class LFPClean(object):
                 signals, min_f, max_f, clean=False, **filter_kwargs
             )
         elif self.method == "ica":
-            result = self.ica_method(signals)
+            reconst, result = self.ica_method(signals)
+            results["cleaned"] = reconst
         else:
             logging.warning(f"{self.method} is not a valid clean method, using avg")
 
-        results = {"signals": result, "fig": None}
+        results["signals"] = result
         if self.visualise:
             fig = self.vis_cleaning(result, signals)
             results["fig"] = fig
@@ -277,8 +279,6 @@ class LFPClean(object):
             # Plot raw ICAs
             ica.plot_sources(mne_array)
 
-            # Overlay ICA cleaned signal over raw. Seperate plot for each region.
-            # TODO Add scroll bar or include window selection option.
             cont = input("Plot region overlay? (y|n) \n")
             if cont.strip().lower() == "y":
                 reg_grps = []
@@ -300,6 +300,7 @@ class LFPClean(object):
             ica.exclude = exclude
             if not skip_plots:
                 ica.plot_sources(mne_array)
+
         # Apply ICA exclusion
         reconst_raw = mne_array.copy()
         exclude_raw = mne_array.copy()
@@ -336,7 +337,9 @@ class LFPClean(object):
                 scalings=dict(eeg=350e-6),
             )
 
-        return reconst_raw
+        result = average_signals(reconst_raw.get_data(), clean=False)
+
+        return reconst_raw, result
 
     def filter_sigs(self, signals, min_f, max_f, **filter_kwargs):
         eeg_array = simuran.EegArray()
