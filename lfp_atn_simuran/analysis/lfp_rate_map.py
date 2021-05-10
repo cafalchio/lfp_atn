@@ -24,7 +24,8 @@ def lfp_rate_recording(recording, base_dir, figures, **kwargs):
     high_f = kwargs.get("high_f", 12)
     # TODO Make clear that one is cleaning and the other for analysis
     save_format = kwargs.get("save_format", "png")
-    region_sigs = LFPClean.avg_signals(recording.signals, min_f, max_f)
+    lc = LFPClean()
+    region_sigs = lc.clean(recording, min_f, max_f)["signals"]
     save_name = recording.get_name_for_save(rel_dir=base_dir)
 
     results = {}
@@ -141,8 +142,9 @@ def lfp_rate(self, lfp_signal, low_f=None, high_f=None, filter_kwargs=None, **kw
     for i, t in enumerate(time_to_use):
         low_sample = floor((t - 0.05) * lfp_signal.get_sampling_rate())
         high_sample = ceil((t + 0.05) * lfp_signal.get_sampling_rate())
+        # TODO abs gives magnitude
         if high_sample < len(lfp_samples):
-            lfp_amplitudes[i] = np.mean(lfp_samples[low_sample : high_sample + 1])
+            lfp_amplitudes[i] = np.mean(np.abs(lfp_samples[low_sample : high_sample + 1]))
         elif do_once:
             logging.warning(
                 "Position data ({}s) is longer than EEG data ({}s)".format(
@@ -177,6 +179,7 @@ def lfp_rate(self, lfp_signal, low_f=None, high_f=None, filter_kwargs=None, **kw
         smoothMap2 = smooth_2d(ps_fmap, filttype, filtsize)
     else:
         smoothMap = fmap
+        smoothMap2 = fmap
 
     if update:
         _results["Spatial Skaggs"] = self.skaggs_info(np.abs(ps_fmap), rate_tmap)

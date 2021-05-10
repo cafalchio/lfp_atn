@@ -81,7 +81,7 @@ def recording_info():
         # Keyword arguments to pass to the loader.
         loader_kwargs = {
             "system": "Axona",
-            "pos_extension": ".txt",
+            "pos_extension": ".pos",
         }
 
         output_dict = {
@@ -103,7 +103,7 @@ def recording_info():
     return mapping
 
 
-def load_recording(set_file_location=None):
+def load_recording(set_file_location=None, type_=".pos"):
     if set_file_location is None:
         set_file_location = os.path.join(
             "D:\\",
@@ -113,7 +113,9 @@ def load_recording(set_file_location=None):
             ),
         )
 
-    recording = simuran.Recording(params=recording_info(), base_file=set_file_location)
+    params = recording_info()
+    params["loader_kwargs"]["pos_extension"] = type_
+    recording = simuran.Recording(params=params, base_file=set_file_location)
 
     return recording
 
