@@ -9,6 +9,13 @@ cfg = read_cfg(os.path.join(here, "dodo.cfg"), verbose=False)
 num_workers = cfg.get("DEFAULT", "num_workers")
 dirname = cfg.get("DEFAULT", "dirname")
 
+def task_list_openfield():
+    return create_task(
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "CL_openfield.py"),
+        ["do_nothing.py"],
+        num_workers=num_workers,
+        dirname=dirname,
+    )
 
 def task_coherence():
     return create_task(
