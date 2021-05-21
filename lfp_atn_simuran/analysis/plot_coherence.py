@@ -11,14 +11,14 @@ from simuran.plot.figure import SimuranFigure
 from neurochat.nc_utils import butter_filter
 
 
-def plot_coherence(x, y, ax, fs=250, group="ATNx", fmax=100):
+def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
     sns.set_style("ticks")
     sns.set_palette("colorblind")
 
-    f, Cxy = coherence(x, y, fs, nperseg=1024)
+    f, Cxy = coherence(x, y, fs, nperseg=2*fs)
 
-    f = f[np.nonzero(f <= fmax)]
-    Cxy = Cxy[np.nonzero(f <= fmax)]
+    f = f[np.nonzero((f >= fmin) & (f <= fmax))]
+    Cxy = Cxy[np.nonzero((f >= fmin) & (f <= fmax))]
 
     sns.lineplot(x=f, y=Cxy, ax=ax)
     sns.despine()
@@ -30,21 +30,23 @@ def plot_coherence(x, y, ax, fs=250, group="ATNx", fmax=100):
     return np.array([f, Cxy, [group] * len(f)])
 
 
-def plot_psd(x, ax, fs=250, group="ATNx", fmax=100):
+def plot_psd(x, ax, fs=250, group="ATNx", fmin=1, fmax=100):
+    # TODO convert to uV
     f, Pxx = welch(
-        x,
+        x*1000,
         fs=fs,
-        nperseg=1024,
+        nperseg=2*fs,
         return_onesided=True,
         scaling="density",
+        average="mean",
     )
 
-    f = f[np.nonzero(f <= fmax)]
-    Pxx = Pxx[np.nonzero(f <= fmax)]
+    f = f[np.nonzero((f >= fmin) & (f <= fmax))]
+    Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
 
     sns.lineplot(x=f, y=Pxx, ax=ax)
     ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("PSD")
+    ax.set_ylabel(u"PSD (\u00b5V\u00b2 / Hz)")
 
     return np.array([f, Pxx, [group] * len(f)])
 
@@ -65,7 +67,9 @@ def sig_avg(arr, at, _filter):
     return butter_filter((sig1 + sig2) / 2, arr[0].sampling_rate, *_filter)
 
 
-def plot_recording_coherence(recording, figures, base_dir, sig_type="first"):
+def plot_recording_coherence(
+    recording, figures, base_dir, sig_type="first", fmin=1, fmax=20
+):
     location = os.path.splitext(recording.source_file)[0]
 
     dirs = base_dir.split(os.sep)
@@ -144,13 +148,26 @@ def plot_recording_coherence(recording, figures, base_dir, sig_type="first"):
     # TODO handle x -> y and y -> x
     fig, ax = plt.subplots()
     result = plot_coherence(
-        sub_signal, rsc_signal, ax, sub_signals[0].sampling_rate, group=group
+        sub_signal,
+        rsc_signal,
+        ax,
+        sub_signals[0].sampling_rate,
+        group=group,
+        fmin=fmin,
+        fmax=fmax,
     )
 
     figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
 
     fig, ax = plt.subplots()
-    plot_psd(sub_signal, ax, sub_signals[0].sampling_rate, group=group)
+    plot_psd(
+        sub_signal,
+        ax,
+        sub_signals[0].sampling_rate,
+        group=group,
+        fmin=fmin,
+        fmax=fmax,
+    )
 
     name = (
         "--".join(os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep))
@@ -163,7 +180,14 @@ def plot_recording_coherence(recording, figures, base_dir, sig_type="first"):
     figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
 
     fig, ax = plt.subplots()
-    plot_psd(rsc_signal, ax, rsc_signals[0].sampling_rate, group=group)
+    plot_psd(
+        rsc_signal,
+        ax,
+        rsc_signals[0].sampling_rate,
+        group=group,
+        fmin=fmin,
+        fmax=fmax,
+    )
 
     name = (
         "--".join(os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep))
