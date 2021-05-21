@@ -119,10 +119,14 @@ def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f
 
     else:
         os.makedirs(output_location, exist_ok=True)
-        
+
         # First plot the LFP signal
-        lfp_clean = LFPClean(method="avg", visualise="True", show_vis=False)
-        result = lfp_clean.clean(recording, min_f=min_f, max_f=max_f)
+        # TODO can I make this clean easier???
+        clean_method = "pick"
+        clean_kwargs = {"channels": [17, 18, 19, 20]}
+
+        lfp_clean = LFPClean(method=clean_method, visualise="True", show_vis=False)
+        result = lfp_clean.clean(recording, min_f=min_f, max_f=max_f, method_kwargs=clean_kwargs)
         fig = result["fig"]
         fig.savefig(os.path.join(output_location, "lfp_plot.png"))
         fig.close()
@@ -130,7 +134,13 @@ def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f
         # Then plot coherence and spectograms
         figures = []
         plot_recording_coherence(
-            recording, figures, os.path.dirname(set_file_location), fmin=min_f, fmax=max_f
+            recording,
+            figures,
+            os.path.dirname(set_file_location),
+            fmin=min_f,
+            fmax=max_f,
+            clean_method="pick",
+            clean_kwargs=clean_kwargs,
         )
         for figure in figures:
             figure.set_filename(os.path.join(output_location, figure.get_filename()))

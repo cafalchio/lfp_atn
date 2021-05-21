@@ -99,6 +99,7 @@ def average_signals(signals, z_threshold=1.1, verbose=False, clean=True):
                 )
     else:
         good_signals = signals
+        bad_idx = []
 
     # 1a. Consider trying to remove noise per channel? Or after avg?
 
@@ -213,6 +214,17 @@ class LFPClean(object):
         elif self.method == "ica":
             reconst, result = self.ica_method(signals)
             results["cleaned"] = reconst
+        elif self.method == "pick":
+            channels = method_kwargs.get("channels")
+            if channels is None:
+                raise ValueError("You must pass the keyword arg channels for pick")
+            container = simuran.GenericContainer(signals[0].__class__)
+            container.container = [s for s in signals if s.channel in channels]
+            result, _ = self.avg_method(
+                container, min_f, max_f, clean=False, **filter_kwargs
+            )
+            bad_chans = [s.channel for s in signals if s.channel not in channels]
+            results["bad_channels"] = bad_chans
         else:
             logging.warning(f"{self.method} is not a valid clean method, using avg")
 
@@ -221,7 +233,7 @@ class LFPClean(object):
             fig = self.vis_cleaning(result, signals, bad_chans=bad_chans)
 
             fig = simuran.SimuranFigure(fig, done=True)
-            
+
             results["fig"] = fig
 
         return results

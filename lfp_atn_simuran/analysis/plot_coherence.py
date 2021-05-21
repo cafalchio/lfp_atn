@@ -5,17 +5,17 @@ from scipy.signal import coherence
 from scipy.signal import welch
 import matplotlib.pyplot as plt
 import seaborn as sns
+import simuran
+import astropy.units as u
 
-from simuran.plot.figure import SimuranFigure
-
-from neurochat.nc_utils import butter_filter
+from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
 
 def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
     sns.set_style("ticks")
     sns.set_palette("colorblind")
 
-    f, Cxy = coherence(x, y, fs, nperseg=2*fs)
+    f, Cxy = coherence(x.samples, y.samples, fs, nperseg=2 * fs)
 
     f = f[np.nonzero((f >= fmin) & (f <= fmax))]
     Cxy = Cxy[np.nonzero((f >= fmin) & (f <= fmax))]
@@ -33,9 +33,9 @@ def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
 def plot_psd(x, ax, fs=250, group="ATNx", fmin=1, fmax=100):
     # TODO convert to uV
     f, Pxx = welch(
-        x*1000,
+        x.samples.to(u.uV).value,
         fs=fs,
-        nperseg=2*fs,
+        nperseg=2 * fs,
         return_onesided=True,
         scaling="density",
         average="mean",
@@ -46,32 +46,12 @@ def plot_psd(x, ax, fs=250, group="ATNx", fmin=1, fmax=100):
 
     sns.lineplot(x=f, y=Pxx, ax=ax)
     ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel(u"PSD (\u00b5V\u00b2 / Hz)")
+    ax.set_ylabel("PSD (\u00b5V\u00b2 / Hz)")
 
     return np.array([f, Pxx, [group] * len(f)])
 
 
-def sig_avg(arr, at, _filter):
-    sig1 = arr[4 * at].samples
-    sig2 = arr[4 * at + 1].samples
-    dead_first = np.all(sig1 == 0)
-    dead_second = np.all(sig2 == 0)
-
-    if dead_first and dead_second:
-        return None
-
-    if dead_first:
-        return butter_filter(sig2, arr[0].sampling_rate, *_filter)
-    if dead_second:
-        return butter_filter(sig1, arr[0].sampling_rate, *_filter)
-    return butter_filter((sig1 + sig2) / 2, arr[0].sampling_rate, *_filter)
-
-
-def plot_recording_coherence(
-    recording, figures, base_dir, sig_type="first", fmin=1, fmax=20
-):
-    location = os.path.splitext(recording.source_file)[0]
-
+def define_recording_group(base_dir):
     dirs = base_dir.split(os.sep)
     if dirs[-1].startswith("CS") or dirs[-2].startswith("CS"):
         group = "Control"
@@ -79,130 +59,51 @@ def plot_recording_coherence(
         group = "Lesion"
     else:
         group = "Undefined"
+    return group
 
-    name = (
-        "--".join(os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep))
-        + "--"
-        + os.path.basename(location)
-        + "_coherence"
-        + ".png"
+
+def name_plot(recording, base_dir, end):
+    return recording.get_name_for_save(base_dir) + end
+
+
+def plot_recording_coherence(
+    recording, figures, base_dir, clean_method="avg", fmin=1, fmax=20, **kwargs
+):
+    fmt = kwargs.get("img_format", "png")
+    clean_kwargs = kwargs.get("clean_kwargs", {})
+    group = define_recording_group(base_dir)
+    result = {}
+
+    # Firstly, clean
+    lfp_clean = LFPClean(method=clean_method, visualise=False)
+    clean_res = lfp_clean.clean(
+        recording, min_f=fmin, max_f=fmax, method_kwargs=clean_kwargs
     )
-    if name.startswith("--"):
-        name = name[2:]
+    cleaned_signal_dict = clean_res["signals"]
 
-    sub_signals = recording.signals.group_by_property("region", "SUB")[0]
-    rsc_signals = recording.signals.group_by_property("region", "RSC")[0]
+    keys = sorted(list(cleaned_signal_dict.keys()))
+    if len(keys) != 2:
+        raise RuntimeError("This method is designed for signals from two brain regions")
 
-    # filter signals to use
-    _filter = [10, 1.5, 100, "bandpass"]
-
-    if sig_type == "first":
-        # Remove dead channels
-        sub_signals = [s for s in sub_signals if not np.all((s.samples == 0))]
-        rsc_signals = [s for s in rsc_signals if not np.all((s.samples == 0))]
-
-        sub_signal = sig_avg(sub_signals, 0, _filter)
-        # sub_signal2 = np.mean(np.array([s.samples for s in sub_signals[:2]]), axis=0)
-        # sub_signal2 = butter_filter(sub_signal2, sub_signals[0].sampling_rate, *_filter)
-        rsc_signal = sig_avg(rsc_signals, 0, _filter)
-
-    elif sig_type == "avg":
-        # Remove dead channels
-        sub_signals = [s for s in sub_signals if not np.all((s.samples == 0))]
-        rsc_signals = [s for s in rsc_signals if not np.all((s.samples == 0))]
-
-        sub_signal = np.mean(np.array([s.samples for s in sub_signals]), axis=0)
-        sub_signal = butter_filter(sub_signal, sub_signals[0].sampling_rate, *_filter)
-        rsc_signal = np.mean(np.array([s.samples for s in rsc_signals]), axis=0)
-        rsc_signal = butter_filter(rsc_signal, rsc_signals[0].sampling_rate, *_filter)
-
-    elif sig_type == "dist":
-        result = {}
-        fs = sub_signals[0].sampling_rate
-        # Get the main result
-        rsc_signal = sig_avg(rsc_signals, 0, _filter)
-        sub_signal = sig_avg(sub_signals, 0, _filter)
-        f, main_result = coherence(rsc_signal, sub_signal, fs, nperseg=1024)
-
-        for i in range(len(main_result)):
-            result["Coh_{:.2f}".format(f[i])] = main_result[i]
-
-        # Compute the other results
-        if len(sub_signals) > 2:
-            matrix_data = np.zeros((int(len(recording.signals) / 4), len(main_result)))
-            matrix_data[0] = main_result
-            for i in range(1, 8):
-                sub_signal = sig_avg(sub_signals, i, _filter)
-                _, matrix_data[i] = coherence(rsc_signal, sub_signal, fs, nperseg=1024)
-
-            # Compare results by getting the variance of each col
-            var_res = np.var(matrix_data, axis=1)
-
-            for i in range(len(main_result)):
-                result["Var_{:.2f}".format(f[i])] = var_res[i]
-
-        else:
-            for i in range(len(main_result)):
-                result["Var_{:.2f}".format(f[i])] = np.nan
-
-        return result
-
-    # TODO handle x -> y and y -> x
+    # Do coherence
+    k1, k2 = keys
+    v1, v2 = cleaned_signal_dict[k1], cleaned_signal_dict[k2]
+    name = name_plot(recording, base_dir, f"_coherence_{k1}-{k2}")
     fig, ax = plt.subplots()
-    result = plot_coherence(
-        sub_signal,
-        rsc_signal,
-        ax,
-        sub_signals[0].sampling_rate,
-        group=group,
-        fmin=fmin,
-        fmax=fmax,
-    )
+    sr = v1.sampling_rate
+    result = plot_coherence(v1, v2, ax, sr, group, fmin=fmin, fmax=fmax)
+    # ax.set_title(f"{k1} to {k2}")
+    ax.set_ylim(0, 1)
+    figures.append(simuran.SimuranFigure(fig, name, dpi=400, done=True, format=fmt))
 
-    figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
-
-    fig, ax = plt.subplots()
-    plot_psd(
-        sub_signal,
-        ax,
-        sub_signals[0].sampling_rate,
-        group=group,
-        fmin=fmin,
-        fmax=fmax,
-    )
-
-    name = (
-        "--".join(os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep))
-        + "--"
-        + os.path.basename(location)
-        + "_psd_sub"
-        + ".png"
-    )
-    if name.startswith("--"):
-        name = name[2:]
-
-    figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
-
-    fig, ax = plt.subplots()
-    plot_psd(
-        rsc_signal,
-        ax,
-        rsc_signals[0].sampling_rate,
-        group=group,
-        fmin=fmin,
-        fmax=fmax,
-    )
-
-    name = (
-        "--".join(os.path.dirname(location)[len(base_dir + os.sep) :].split(os.sep))
-        + "--"
-        + os.path.basename(location)
-        + "_psd_rsc"
-        + ".png"
-    )
-    if name.startswith("--"):
-        name = name[2:]
-
-    figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
+    # Do power spectra
+    for k in keys:
+        name = name_plot(recording, base_dir, f"power_{k}")
+        v = cleaned_signal_dict[k]
+        sr = v.sampling_rate
+        fig, ax = plt.subplots()
+        plot_psd(v, ax, sr, group, fmin=fmin, fmax=fmax)
+        fig = simuran.SimuranFigure(fig, name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
 
     return result
