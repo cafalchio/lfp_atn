@@ -163,6 +163,8 @@ class LFPClean(object):
 
         fig = self.vis_cleaning(results, signals)
 
+        fig = simuran.SimuranFigure(fig, done=True)
+
         return fig
 
     def clean(self, data, min_f=None, max_f=None, method_kwargs=None, **filter_kwargs):
@@ -217,6 +219,9 @@ class LFPClean(object):
         results["signals"] = result
         if self.visualise:
             fig = self.vis_cleaning(result, signals, bad_chans=bad_chans)
+
+            fig = simuran.SimuranFigure(fig, done=True)
+            
             results["fig"] = fig
 
         return results

@@ -87,6 +87,8 @@ def plot_recording_coherence(
         + "_coherence"
         + ".png"
     )
+    if name.startswith("--"):
+        name = name[2:]
 
     sub_signals = recording.signals.group_by_property("region", "SUB")[0]
     rsc_signals = recording.signals.group_by_property("region", "RSC")[0]
@@ -176,6 +178,8 @@ def plot_recording_coherence(
         + "_psd_sub"
         + ".png"
     )
+    if name.startswith("--"):
+        name = name[2:]
 
     figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
 
@@ -196,6 +200,8 @@ def plot_recording_coherence(
         + "_psd_rsc"
         + ".png"
     )
+    if name.startswith("--"):
+        name = name[2:]
 
     figures.append(SimuranFigure(fig, name, dpi=400, done=True, format="png"))
 

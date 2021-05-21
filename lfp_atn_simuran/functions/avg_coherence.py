@@ -46,6 +46,10 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
+        kwargs = {
+            "min_f": 1,
+            "max_f": 20,
+        }
         arguments = {
             "plot_recording_coherence": (
                 [figures, recording_container.base_dir],
