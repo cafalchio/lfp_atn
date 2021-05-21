@@ -31,7 +31,6 @@ def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
 
 
 def plot_psd(x, ax, fs=250, group="ATNx", fmin=1, fmax=100):
-    # TODO convert to uV
     f, Pxx = welch(
         x.samples.to(u.uV).value,
         fs=fs,
@@ -67,7 +66,7 @@ def name_plot(recording, base_dir, end):
 
 
 def plot_recording_coherence(
-    recording, figures, base_dir, clean_method="avg", fmin=1, fmax=20, **kwargs
+    recording, figures, base_dir, clean_method="avg", fmin=1, fmax=30, **kwargs
 ):
     fmt = kwargs.get("img_format", "png")
     clean_kwargs = kwargs.get("clean_kwargs", {})

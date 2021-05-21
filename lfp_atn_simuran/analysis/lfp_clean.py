@@ -283,8 +283,6 @@ class LFPClean(object):
         return output_dict, bad_chans
 
     def ica_method(self, signals, exclude=None):
-        # mne_array, regions, chans_to_plot=20, base_name="", exclude=None
-
         skip_plots = not self.visualise
         if not isinstance(signals, simuran.EegArray):
             eeg_array = simuran.EegArray()
