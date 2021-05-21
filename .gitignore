@@ -11,3 +11,4 @@ simuran/saved/
 tests/*.png
 tests/*.csv
 *sim_results*
+lfp_atn_simuran/examples/results/
