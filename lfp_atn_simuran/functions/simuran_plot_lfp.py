@@ -45,7 +45,9 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {"mne_plot": ([figures, recording_container.base_dir], {})}
+        arguments = {
+            "mne_plot": ([figures, recording_container.base_dir], {"method": "avg"})
+        }
         return arguments
 
     return functions, argument_handler
@@ -76,10 +78,10 @@ def setup_output():
     """Establish what results of the functions will be saved."""
 
     # This should list the results to save to a csv
-    save_list = []
+    save_list = [("results", "mne_plot")]
 
     # You can name each of these outputs
-    output_names = []
+    output_names = ["bad channels"]
 
     return save_list, output_names
 

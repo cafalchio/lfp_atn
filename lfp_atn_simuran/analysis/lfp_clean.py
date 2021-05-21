@@ -106,9 +106,9 @@ def average_signals(signals, z_threshold=1.1, verbose=False, clean=True):
     avg_sig = np.mean(good_signals, axis=0)
 
     if hasattr(signals[0], "unit"):
-        return avg_sig * signals[0].unit
+        return (avg_sig * signals[0].unit), bad_idx
     else:
-        return avg_sig
+        return avg_sig, bad_idx
 
 
 class LFPClean(object):
@@ -180,6 +180,7 @@ class LFPClean(object):
         dict with keys "signals", "fig"
 
         """
+        bad_chans = None
         results = {"signals": None, "fig": None, "cleaned": None}
         if method_kwargs is None:
             method_kwargs = {}
@@ -194,7 +195,7 @@ class LFPClean(object):
 
         if self.method == "avg":
             z_threshold = method_kwargs.get("z_threshold", 1.1)
-            result = self.avg_method(
+            result, bad_chans = self.avg_method(
                 signals,
                 min_f,
                 max_f,
@@ -202,8 +203,9 @@ class LFPClean(object):
                 z_threshold=z_threshold,
                 **filter_kwargs,
             )
+            results["bad_channels"] = bad_chans
         elif self.method == "avg_raw":
-            result = self.avg_method(
+            result, _ = self.avg_method(
                 signals, min_f, max_f, clean=False, **filter_kwargs
             )
         elif self.method == "ica":
@@ -214,12 +216,12 @@ class LFPClean(object):
 
         results["signals"] = result
         if self.visualise:
-            fig = self.vis_cleaning(result, signals)
+            fig = self.vis_cleaning(result, signals, bad_chans=bad_chans)
             results["fig"] = fig
 
         return results
 
-    def vis_cleaning(self, result, signals):
+    def vis_cleaning(self, result, signals, bad_chans=None):
         if isinstance(result, dict):
             eeg_array = simuran.EegArray()
             _, eeg_idxs = signals.group_by_property("channel_type", "eeg")
@@ -232,7 +234,7 @@ class LFPClean(object):
             eeg_array = simuran.EegArray()
             eeg_array.set_container([simuran.Eeg(signal=eeg) for eeg in result])
 
-        fig = eeg_array.plot(proj=False, show=self.show_vis)
+        fig = eeg_array.plot(proj=False, show=self.show_vis, bad_chans=bad_chans)
 
         return fig
 
@@ -245,8 +247,9 @@ class LFPClean(object):
 
         output_dict = OrderedDict()
 
+        bad_chans = []
         for region, (signals, _) in signals_grouped_by_region.items():
-            val = average_signals(
+            val, bad_idx = average_signals(
                 [s.samples for s in signals],
                 z_threshold=z_threshold,
                 verbose=True,
@@ -258,8 +261,9 @@ class LFPClean(object):
             eeg.set_channel("avg")
             eeg.filter(min_f, max_f, inplace=True, **filter_kwargs)
             output_dict[region] = eeg
+            bad_chans += [signals[i].channel for i in bad_idx]
 
-        return output_dict
+        return output_dict, bad_chans
 
     def ica_method(self, signals, exclude=None):
         # mne_array, regions, chans_to_plot=20, base_name="", exclude=None
