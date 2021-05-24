@@ -23,7 +23,6 @@ def plot_psd(x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100):
     f = f[np.nonzero((f >= fmin) & (f <= fmax))]
     Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
 
-    simuran.set_plot_style()
     sns.lineplot(x=f, y=Pxx, ax=ax)
     simuran.despine()
     ax.set_xlabel("Frequency (Hz)")
@@ -60,6 +59,7 @@ def powers(
 
     results = {}
     window_sec = 2
+    simuran.set_plot_style()
 
     for name, signal in signals_grouped_by_region.items():
         results["{} delta".format(name)] = np.nan
