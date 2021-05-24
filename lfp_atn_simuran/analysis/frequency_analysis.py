@@ -1,24 +1,65 @@
+import os
+
 import numpy as np
 from scipy.signal import welch
 from astropy import units as u
-from sklearn.cluster import KMeans
+import simuran
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
 
-def powers(recording, clean_method="avg", fmin=1, fmax=100, **kwargs):
+def plot_psd(x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100):
+    f, Pxx = welch(
+        x.samples.to(u.uV).value,
+        fs=fs,
+        nperseg=2 * fs,
+        return_onesided=True,
+        scaling="density",
+        average="mean",
+    )
+
+    f = f[np.nonzero((f >= fmin) & (f <= fmax))]
+    Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
+
+    simuran.set_plot_style()
+    sns.lineplot(x=f, y=Pxx, ax=ax)
+    simuran.despine()
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("PSD (\u00b5V\u00b2 / Hz)")
+
+    return np.array([f, Pxx, [group] * len(f), [region] * len(f)])
+
+
+def define_recording_group(base_dir):
+    dirs = base_dir.split(os.sep)
+    if dirs[-1].startswith("CS") or dirs[-2].startswith("CS"):
+        group = "Control"
+    elif dirs[-1].startswith("LS") or dirs[-2].startswith("LS"):
+        group = "Lesion"
+    else:
+        group = "Undefined"
+    return group
+
+
+def name_plot(recording, base_dir, end):
+    return recording.get_name_for_save(base_dir) + end
+
+
+def powers(
+    recording, base_dir, figures, clean_method="avg", fmin=1, fmax=100, **kwargs
+):
     # TODO refactor the cleaning
     clean_kwargs = kwargs.get("clean_kwargs", {})
     lc = LFPClean(method=clean_method, visualise=False)
-    signals = lc.clean(recording.signals, fmin, fmax, method_kwargs=clean_kwargs)[
-        "signals"
-    ]
-    return signal_powers(signals, **kwargs)
+    signals_grouped_by_region = lc.clean(
+        recording.signals, fmin, fmax, method_kwargs=clean_kwargs
+    )["signals"]
+    fmt = kwargs.get("image_format", "png")
 
-
-def signal_powers(signals_grouped_by_region, **kwargs):
     results = {}
-    window_sec = kwargs.get("window_sec", 2)
+    window_sec = 2
 
     for name, signal in signals_grouped_by_region.items():
         results["{} delta".format(name)] = np.nan
@@ -66,17 +107,15 @@ def signal_powers(signals_grouped_by_region, **kwargs):
         results["{} low gamma rel".format(name)] = low_gamma_power["relative_power"]
         results["{} high gamma rel".format(name)] = high_gamma_power["relative_power"]
 
-        low, high = [0.1, 125]
-        window_sec = kwargs.get("window_sec", 2)
-        unit = kwargs.get("unit", "micro")
-        scale = u.uV if unit == "micro" else u.mV
-        sf = signal.get_sampling_rate()
-        lfp_samples = np.array(signal.samples.to(scale))
-
-        # Compute the modified periodogram (Welch)
-        nperseg = int(window_sec * sf)
-        freqs, psd = welch(lfp_samples, sf, nperseg=nperseg)
-        idx_band = np.logical_and(freqs >= low, freqs <= high)
-        results["{} welch".format(name)] = [freqs[idx_band], psd[idx_band]]
+        # Do power spectra
+        out_name = name_plot(recording, base_dir, f"power_{name}")
+        sr = signal.sampling_rate
+        fig, ax = plt.subplots()
+        group = define_recording_group(base_dir)
+        results["{} welch".format(name)] = plot_psd(
+            signal, ax, sr, group, name, fmin=fmin, fmax=fmax
+        )
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
 
     return results

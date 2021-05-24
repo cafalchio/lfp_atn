@@ -37,7 +37,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_theta_power.py"
+                    "__thisdirname__", "..", "functions", "power.py"
                 ),
                 "CSR{}".format(val),
             )
@@ -50,7 +50,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_theta_power.py"
+                    "__thisdirname__", "..", "functions", "power.py"
                 ),
                 "LSR{}".format(val),
             )
@@ -75,7 +75,7 @@ def set_fixed_params(in_dict):
     in_dict["keep_all_data"] = False
 
     # What folders to merge
-    in_dict["to_merge"] = ["simuran_theta_power"]
+    in_dict["to_merge"] = ["power"]
     return in_dict
 
 

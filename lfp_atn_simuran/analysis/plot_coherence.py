@@ -20,34 +20,15 @@ def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
     f = f[np.nonzero((f >= fmin) & (f <= fmax))]
     Cxy = Cxy[np.nonzero((f >= fmin) & (f <= fmax))]
 
+    simuran.set_plot_style()
     sns.lineplot(x=f, y=Cxy, ax=ax)
-    sns.despine()
+    simuran.despine()
 
     plt.xlabel("Frequency (Hz)")
     plt.ylabel("Coherence")
     plt.ylim(0, 1)
 
     return np.array([f, Cxy, [group] * len(f)])
-
-
-def plot_psd(x, ax, fs=250, group="ATNx", fmin=1, fmax=100):
-    f, Pxx = welch(
-        x.samples.to(u.uV).value,
-        fs=fs,
-        nperseg=2 * fs,
-        return_onesided=True,
-        scaling="density",
-        average="mean",
-    )
-
-    f = f[np.nonzero((f >= fmin) & (f <= fmax))]
-    Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
-
-    sns.lineplot(x=f, y=Pxx, ax=ax)
-    ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("PSD (\u00b5V\u00b2 / Hz)")
-
-    return np.array([f, Pxx, [group] * len(f)])
 
 
 def define_recording_group(base_dir):
@@ -91,18 +72,7 @@ def plot_recording_coherence(
     fig, ax = plt.subplots()
     sr = v1.sampling_rate
     result = plot_coherence(v1, v2, ax, sr, group, fmin=fmin, fmax=fmax)
-    # ax.set_title(f"{k1} to {k2}")
     ax.set_ylim(0, 1)
     figures.append(simuran.SimuranFigure(fig, name, dpi=400, done=True, format=fmt))
-
-    # Do power spectra
-    for k in keys:
-        name = name_plot(recording, base_dir, f"power_{k}")
-        v = cleaned_signal_dict[k]
-        sr = v.sampling_rate
-        fig, ax = plt.subplots()
-        plot_psd(v, ax, sr, group, fmin=fmin, fmax=fmax)
-        fig = simuran.SimuranFigure(fig, name, dpi=400, done=True, format=fmt)
-        figures.append(fig)
 
     return result

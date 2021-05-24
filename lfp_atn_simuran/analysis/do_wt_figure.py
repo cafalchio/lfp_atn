@@ -1,19 +1,3 @@
-PALETTE = "dark"
-
-
-def set_p():
-    """Set the seaborn palette."""
-    import seaborn as sns
-
-    sns.set_style("ticks")
-    sns.set_palette(PALETTE)
-    sns.set_context(
-        "paper",
-        font_scale=1.4,
-        rc={"lines.linewidth": 2.0},
-    )
-
-
 def do_fig(info, extra_info):
     data, fnames = info
     out_dir, name = extra_info
@@ -33,33 +17,46 @@ def plot_all_spectrum(info, out_dir, name):
     import pandas as pd
     import seaborn as sns
     import matplotlib.pyplot as plt
+    import simuran
 
     from neurochat.nc_utils import smooth_1d
 
-    here = os.path.dirname(os.path.abspath(__file__))
-    base_dir = os.path.abspath(os.path.join(here, "..", ".."))
     os.makedirs(out_dir, exist_ok=True)
 
-    set_p()
+    simuran.set_plot_style()
+
+    # Control args
+    smooth_power = False
 
     parsed_info = []
     data, fnames = info
+    n_ctrl_animals = 0
+    n_lesion_animals = 0
     for item_list, fname_list in zip(data, fnames):
-        for item_dict, fname in zip(item_list, fname_list):
-            start_bit = fname[len(base_dir) + 1]
-            if start_bit.lower() == "c":
-                data_set = "Control"
+        r_ctrl = 0
+        r_les = 0
+        for item_dict, _ in zip(item_list, fname_list):
+            data_set = item_dict["SUB" + " welch"][2][0]
+            if data_set == "Control":
+                r_ctrl += 1
             else:
-                data_set = "Lesion"
-            for r in ["sub", "rsc"]:
-                freqs = item_dict[r + " welch"][0].astype(float)
-                powers = smooth_1d(
-                    item_dict[r + " welch"][1].astype(float),
-                    kernel_type="hg",
-                    kernel_size=5,
-                )
-                for f, p in zip(freqs, powers):
-                    parsed_info.append((f, p, data_set, r))
+                r_les += 1
+
+                for r in ["SUB", "RSC"]:
+                    id = item_dict[r + " welch"]
+                    powers = id[1]
+                    if smooth_power:
+                        powers = smooth_1d(
+                            id[1].astype(float),
+                            kernel_type="hg",
+                            kernel_size=5,
+                        )
+                    for v1, v2, v3, v4 in zip(id[0], powers, id[2], id[3]):
+                        parsed_info.append([v1, v2, v3, v4])
+
+        n_ctrl_animals += r_ctrl / len(fname_list)
+        n_lesion_animals += r_les / len(fname_list)
+    print(f"{n_ctrl_animals} CTRL animals, {n_lesion_animals} Lesion animals")
 
     data = np.array(parsed_info)
     df = pd.DataFrame(data, columns=["frequency", "power", "Group", "region"])
@@ -71,7 +68,7 @@ def plot_all_spectrum(info, out_dir, name):
         sns.set_style("ticks")
         sns.set_palette("colorblind")
         sns.lineplot(
-            data=df[df["region"] == "sub"],
+            data=df[df["region"] == "SUB"],
             x="frequency",
             y="power",
             style="Group",
@@ -83,7 +80,7 @@ def plot_all_spectrum(info, out_dir, name):
         plt.xlabel("Frequency (Hz)")
         plt.ylabel("Power (uV^2 / Hz)")
 
-        print("Saving plots to {}".format(out_dir))
+        print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
 
         os.makedirs(os.path.join(out_dir, "summary"), exist_ok=True)
         plt.savefig(
@@ -94,7 +91,7 @@ def plot_all_spectrum(info, out_dir, name):
         plt.close("all")
 
         sns.lineplot(
-            data=df[df["region"] == "rsc"],
+            data=df[df["region"] == "RSC"],
             x="frequency",
             y="power",
             style="Group",
@@ -106,7 +103,7 @@ def plot_all_spectrum(info, out_dir, name):
         plt.xlabel("Frequency (Hz)")
         plt.ylabel("Power (uV^2 / Hz)")
 
-        print("Saving plots to {}".format(out_dir))
+        print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
 
         plt.savefig(
             os.path.join(out_dir, "summary", name + "--rsc--power{}.pdf".format(oname)),
