@@ -36,7 +36,7 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
-                os.path.join("__thisdirname__", "..", "functions", "do_nothing.py"),
+                os.path.join("__thisdirname__", "..", "functions", "list_recordings.py"),
                 "CSR{}".format(val),
             )
         )
@@ -47,7 +47,7 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
-                os.path.join("__thisdirname__", "..", "functions", "do_nothing.py"),
+                os.path.join("__thisdirname__", "..", "functions", "list_recordings.py"),
                 "LSR{}".format(val),
             )
         )
@@ -68,7 +68,7 @@ def set_fixed_params(in_dict):
     # EEG signals that were recorded in two second long trials
     in_dict["keep_all_data"] = False
 
-    in_dict["to_merge"] = ["do_nothing"]
+    in_dict["to_merge"] = ["list_recordings"]
     return in_dict
 
 
