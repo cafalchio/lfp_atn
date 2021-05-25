@@ -10,6 +10,7 @@ def setup_functions():
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
     from plot_lfp_eg import mne_plot
+    from parse_cfg import parse_cfg_info
 
     functions = [mne_plot]
 
@@ -45,9 +46,9 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {
-            "mne_plot": ([figures, recording_container.base_dir], {"method": "avg"})
-        }
+        args = [recording_container.base_dir, figures]
+        kwargs = parse_cfg_info()
+        arguments = {"mne_plot": (args, kwargs)}
         return arguments
 
     return functions, argument_handler

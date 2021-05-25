@@ -216,17 +216,18 @@ class LFPClean(object):
             results["cleaned"] = reconst
         elif self.method == "pick":
             channels = method_kwargs.get("channels")
+            prop = method_kwargs.get("pick_property", "channel")
             if channels is None:
                 raise ValueError("You must pass the keyword arg channels for pick")
             container = simuran.GenericContainer(signals[0].__class__)
-            container.container = [s for s in signals if s.channel in channels]
+            container.container = [s for s in signals if getattr(s, prop) in channels]
             result, _ = self.avg_method(
                 container, min_f, max_f, clean=False, **filter_kwargs
             )
             bad_chans = [s.channel for s in signals if s.channel not in channels]
             results["bad_channels"] = bad_chans
         else:
-            logging.warning(f"{self.method} is not a valid clean method, using avg")
+            raise ValueError(f"{self.method} is not a valid clean method")
 
         results["signals"] = result
         if self.visualise:

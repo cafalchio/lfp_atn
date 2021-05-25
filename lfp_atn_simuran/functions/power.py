@@ -6,12 +6,12 @@ that will be performed on each recording in a loaded container.
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""
+    from frequency_analysis import powers
+    from parse_cfg import parse_cfg_info
+    functions = [powers]
 
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    from frequency_analysis import powers
-
-    functions = [powers]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -28,16 +28,16 @@ def setup_functions():
 
         This can be used to run the same function many times
         with different parameters, by providing an argument. E.g.
-        
+
         .. code-block:: python
             def add(recording, num1, num2):
                 return num1 + num2
-            
+
             functions = [add]
-            
+
             arguments = {}
             arguments["add"] = {"0": ([1, 2], {}) "1": ([2, 3], {})}
-        
+
         would add 1 and 2, and then separately add 2 and 3
 
         Parameters
@@ -58,7 +58,7 @@ def setup_functions():
 
         """
         args = [recording_container.base_dir, figures]
-        kwargs = {"image_format": "png"}
+        kwargs = parse_cfg_info()
         arguments = {"powers": (args, kwargs)}
         return arguments
 
