@@ -17,35 +17,46 @@ from simuran import SimuranFigure
 
 
 def lfp_rate_recording(recording, base_dir, figures, **kwargs):
-    # TODO fix to also clean
-    min_f = kwargs.get("min_f", 1.0)
-    max_f = kwargs.get("max_f", 100)
-    low_f = kwargs.get("low_f", 7)
-    high_f = kwargs.get("high_f", 12)
-    # TODO Make clear that one is cleaning and the other for analysis
-    save_format = kwargs.get("save_format", "png")
-    lc = LFPClean()
-    region_sigs = lc.clean(recording, min_f, max_f)["signals"]
+    min_f = kwargs.get("fmin", 1.0)
+    max_f = kwargs.get("fmax", 100)
+
+    # Delta and Theta
+    low_f = [1.5, 6]
+    high_f = [4, 10]
+    band_name = ["Delta", "Theta"]
+
+    save_format = kwargs.get("image_format", "png")
+    clean_method = kwargs.get("clean_method", "avg")
+    clean_kwargs = kwargs.get("clean_kwargs", {})
+
+    lc = LFPClean(method=clean_method, visualise=False)
+    region_sigs = lc.clean(recording, min_f, max_f, method_kwargs=clean_kwargs)[
+        "signals"
+    ]
     save_name = recording.get_name_for_save(rel_dir=base_dir)
-
     results = {}
+    fig, ax = plt.subplots(2, 2)
+    spatial = recording.spatial.underlying
 
-    fig, ax = plt.subplots(2, 1)
-    for i, (region, signal) in enumerate(region_sigs.items()):
-        spatial = recording.spatial.underlying
-        data = lfp_rate(
-            spatial,
-            signal,
-            low_f=low_f,
-            high_f=high_f,
-            filter_kwargs={"verbose": "WARNING"},
-        )
-        lfp_rate_plot(data, ax=ax[i])
-        ax[i].set_title(f"{region}: {low_f}-{high_f} Hz")
-        nc_results = spatial.get_results()
-        for name, value in nc_results.items():
-            results[f"{region}--{name}"] = value
-        spatial.reset_results()
+    for j in range(len(low_f)):
+        low = low_f[j]
+        high = high_f[j]
+        band = band_name[j]
+
+        for i, (region, signal) in enumerate(region_sigs.items()):
+            data = lfp_rate(
+                spatial,
+                signal,
+                low_f=low,
+                high_f=high,
+                filter_kwargs={"verbose": "WARNING"},
+            )
+            lfp_rate_plot(data, ax=ax[j][i])
+            ax[j][i].set_title(f"{region}: {low}-{high} Hz")
+            nc_results = spatial.get_results()
+            for name, value in nc_results.items():
+                results[f"{region}--{band}--{name}"] = value
+            spatial.reset_results()
 
     fig.tight_layout()
     out_name = f"{save_name}--lfp_rate"
@@ -144,7 +155,9 @@ def lfp_rate(self, lfp_signal, low_f=None, high_f=None, filter_kwargs=None, **kw
         high_sample = ceil((t + 0.05) * lfp_signal.get_sampling_rate())
         # TODO abs gives magnitude
         if high_sample < len(lfp_samples):
-            lfp_amplitudes[i] = np.mean(np.abs(lfp_samples[low_sample : high_sample + 1]))
+            lfp_amplitudes[i] = np.mean(
+                np.abs(lfp_samples[low_sample : high_sample + 1])
+            )
         elif do_once:
             logging.warning(
                 "Position data ({}s) is longer than EEG data ({}s)".format(

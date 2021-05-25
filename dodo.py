@@ -35,13 +35,13 @@ def task_lfp_plot():
     )
 
 
-def task_lfp_difference():
-    return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "lfp_difference.py"),
-        ["lfp_difference.py"],
-        num_workers=num_workers,
-        dirname=dirname,
-    )
+# def task_lfp_difference():
+#     return create_task(
+#         os.path.join(here, "lfp_atn_simuran", "multi_runs", "lfp_difference.py"),
+#         ["lfp_difference.py"],
+#         num_workers=num_workers,
+#         dirname=dirname,
+#     )
 
 
 def task_theta_power():

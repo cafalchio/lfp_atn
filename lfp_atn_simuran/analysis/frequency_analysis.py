@@ -108,7 +108,6 @@ def name_plot(recording, base_dir, end):
 def powers(
     recording, base_dir, figures, clean_method="avg", fmin=1, fmax=100, **kwargs
 ):
-    # TODO refactor the cleaning
     clean_kwargs = kwargs.get("clean_kwargs", {})
     lc = LFPClean(method=clean_method, visualise=False)
     signals_grouped_by_region = lc.clean(

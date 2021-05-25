@@ -10,6 +10,7 @@ def setup_functions():
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
     from lfp_atn_simuran.analysis.lfp_rate_map import lfp_rate_recording
+    from parse_cfg import parse_cfg_info
 
     functions = [lfp_rate_recording]
 
@@ -47,7 +48,7 @@ def setup_functions():
         """
         # TODO update to run each freq band in one go
         fn_args = (recording_container.base_dir, figures)
-        fn_kwargs = {"save_format": "png"}
+        fn_kwargs = parse_cfg_info()
         arguments = {"lfp_rate_recording": (fn_args, fn_kwargs)}
         return arguments
 

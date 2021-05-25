@@ -20,7 +20,6 @@ def plot_coherence(x, y, ax, fs=250, group="ATNx", fmin=1, fmax=100):
     f = f[np.nonzero((f >= fmin) & (f <= fmax))]
     Cxy = Cxy[np.nonzero((f >= fmin) & (f <= fmax))]
 
-    simuran.set_plot_style()
     sns.lineplot(x=f, y=Cxy, ax=ax)
     simuran.despine()
 
@@ -49,7 +48,7 @@ def name_plot(recording, base_dir, end):
 def plot_recording_coherence(
     recording, figures, base_dir, clean_method="avg", fmin=1, fmax=30, **kwargs
 ):
-    fmt = kwargs.get("img_format", "png")
+    fmt = kwargs.get("image_format", "png")
     clean_kwargs = kwargs.get("clean_kwargs", {})
     group = define_recording_group(base_dir)
     result = {}
@@ -69,6 +68,7 @@ def plot_recording_coherence(
     k1, k2 = keys
     v1, v2 = cleaned_signal_dict[k1], cleaned_signal_dict[k2]
     name = name_plot(recording, base_dir, f"_coherence_{k1}-{k2}")
+    simuran.set_plot_style()
     fig, ax = plt.subplots()
     sr = v1.sampling_rate
     result = plot_coherence(v1, v2, ax, sr, group, fmin=fmin, fmax=fmax)
