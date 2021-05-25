@@ -224,7 +224,7 @@ class LFPClean(object):
             result, _ = self.avg_method(
                 container, min_f, max_f, clean=False, **filter_kwargs
             )
-            bad_chans = [s.channel for s in signals if s.channel not in channels]
+            bad_chans = [s.channel for s in signals if getattr(s, prop) not in channels]
             results["bad_channels"] = bad_chans
         else:
             raise ValueError(f"{self.method} is not a valid clean method")

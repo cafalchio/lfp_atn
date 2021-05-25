@@ -6,6 +6,7 @@ from astropy import units as u
 import simuran
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
@@ -29,6 +30,64 @@ def plot_psd(x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100):
     ax.set_ylabel("PSD (\u00b5V\u00b2 / Hz)")
 
     return np.array([f, Pxx, [group] * len(f), [region] * len(f)])
+
+
+def per_animal_psd(recording_container, base_dir, figures, **kwargs):
+    simuran.set_plot_style()
+    item_list = [r.results for r in recording_container]
+    parsed_info = []
+
+    fmt = kwargs.get("image_format", "png")
+
+    for item_dict in item_list:
+        item_dict = item_dict["powers"]
+        for r in ["SUB", "RSC"]:
+            id_ = item_dict[r + " welch"]
+            powers = id_[1]
+            for v1, v2, v3, v4 in zip(id_[0], powers, id_[2], id_[3]):
+                parsed_info.append([v1, v2, v3, v4])
+
+    data = np.array(parsed_info)
+    df = pd.DataFrame(data, columns=["frequency", "power", "Group", "region"])
+    df[["frequency", "power"]] = df[["frequency", "power"]].apply(pd.to_numeric)
+
+    for ci, oname in zip([95, None], ["_ci", ""]):
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df[df["region"] == "SUB"],
+            x="frequency",
+            y="power",
+            ci=ci,
+            estimator="mean",
+            ax=ax,
+        )
+        simuran.despine()
+        plt.xlabel("Frequency (Hz)")
+        plt.ylabel("Power (uV^2 / Hz)")
+
+        name = recording_container.base_dir[len(base_dir + os.sep) :].replace(
+            os.sep, "--"
+        )
+        out_name = name + "--sub--power{}".format(oname)
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
+
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df[df["region"] == "RSC"],
+            x="frequency",
+            y="power",
+            ci=ci,
+            estimator="mean",
+            ax=ax,
+        )
+        simuran.despine()
+        plt.xlabel("Frequency (Hz)")
+        plt.ylabel("Power (uV^2 / Hz)")
+
+        out_name = name + "--rsc--power{}".format(oname)
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
 
 
 def define_recording_group(base_dir):

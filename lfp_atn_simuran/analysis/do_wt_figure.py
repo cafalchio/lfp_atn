@@ -43,15 +43,15 @@ def plot_all_spectrum(info, out_dir, name):
                 r_les += 1
 
             for r in ["SUB", "RSC"]:
-                id = item_dict[r + " welch"]
-                powers = id[1]
+                id_ = item_dict[r + " welch"]
+                powers = id_[1]
                 if smooth_power:
                     powers = smooth_1d(
-                        id[1].astype(float),
+                        id_[1].astype(float),
                         kernel_type="hg",
                         kernel_size=5,
                     )
-                for v1, v2, v3, v4 in zip(id[0], powers, id[2], id[3]):
+                for v1, v2, v3, v4 in zip(id_[0], powers, id_[2], id_[3]):
                     parsed_info.append([v1, v2, v3, v4])
 
         n_ctrl_animals += r_ctrl / len(fname_list)
@@ -63,8 +63,6 @@ def plot_all_spectrum(info, out_dir, name):
     df.replace("Control", "Control (ATN,   N = 6)", inplace=True)
     df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
     df[["frequency", "power"]] = df[["frequency", "power"]].apply(pd.to_numeric)
-    print(df.head())
-    print(df.tail())
 
     for ci, oname in zip([95, None], ["_ci", ""]):
         sns.lineplot(
