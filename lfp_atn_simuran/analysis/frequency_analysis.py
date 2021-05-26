@@ -58,7 +58,7 @@ def per_animal_psd(recording_container, base_dir, figures, **kwargs):
             x="frequency",
             y="power",
             ci=ci,
-            estimator="mean",
+            estimator=np.median,
             ax=ax,
         )
         simuran.despine()
@@ -78,7 +78,7 @@ def per_animal_psd(recording_container, base_dir, figures, **kwargs):
             x="frequency",
             y="power",
             ci=ci,
-            estimator="mean",
+            estimator=np.median,
             ax=ax,
         )
         simuran.despine()
