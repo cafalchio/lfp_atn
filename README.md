@@ -14,20 +14,20 @@ Only small arena recordings were considered to reduce variables.
 Recordings in the big square arena were not considered.
 
 Control:
-1. CSR1 - all small square recordings and habituation (11 days)
-2. CSR2 - all small square recordings and habituation (13 days)
-3. CSR3 - all small square recordings and habituation (10 days)
-4. CSR4 - all small square recordings and habituation (10 days, 11 records)
-5. CSR5 - all small square recordings and habituation (9 days, 10 records)
+1. CSR1 - all small square recordings (not habituation) (6 days)
+2. CSR2 - all small square recordings (not habituation) (6 days)
+3. CSR3 - all small square recordings (not habituation) (6 days)
+4. CSR4 - all small square recordings (9 days, 10 records)
+5. CSR5 - all small square recordings and habituation (8 days, 9 records)
 6. CSR6 - all small square recordings and habituation (9 days)
 
 Lesion:
-1. LSR1 - all small square recordings and habituation (12 days)
-2. LSR3 - all small square recordings and habituation (10 days)
-3. LSR4 - all small square recordings and habituation (9 days, 10 records)
-4. LSR5 - all small square recordings and habituation (9 days, 10 records)
-5. LSR6 - all habituation (8 days)
-6. LSR7 - all small square recordings and habituation (9 days)
+1. LSR1 - all small square recordings (not habituation) (6 days)
+2. LSR3 - all small square recordings (not habituation) (6 days)
+3. LSR4 - all small square recordings (9 days, 10 records)
+4. LSR5 - all small square recordings (9 days, 10 records)
+5. LSR6 - all small square recordings (8 days)
+6. LSR7 - all small square recordings (9 days)
 
 ## TODO
 1. Decide if using screening recordings in CL.
