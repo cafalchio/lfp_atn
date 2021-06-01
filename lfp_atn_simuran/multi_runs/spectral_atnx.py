@@ -43,7 +43,7 @@ def set_file_locations():
             )
         )
 
-    for val in [1, 3, 4, 5, 6]:
+    for val in [1, 3, 4, 5, 6, 7]:
         output.append(
             (
                 os.path.join(

@@ -8,7 +8,7 @@ start_dir = os.path.abspath(
 )
 
 # regex_filters should be a list of regex patterns to match against.
-regex_filters = ["^CSR.*/.*[1-9]$"]
+regex_filters = ["^(CSR|small).*/.*[1-9]$"]
 
 # Overwrites existing parameter files (simuran_params.py) if they exist.
 overwrite = True

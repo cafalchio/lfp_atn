@@ -3,12 +3,13 @@
 import os
 
 # Where to start running batch analysis from
-start_dir = os.path.abspath(
-    os.path.join("__dirname__", "LSubRet5", "recording")
-)
+start_dir = os.path.abspath(os.path.join("__dirname__", "LSubRet5", "recording"))
 
 # regex_filters should be a list of regex patterns to match against.
-regex_filters = ["^Small sq up.*/.*[1-9].*/.*[p,n]$"]
+regex_filters = [
+    "(^Small sq up.*/.*[1-9].*/.*[p,n]$)|(^small.*/.*[1-9]$)",
+    ".*(?<!16112017)$",
+]
 
 # Overwrites existing parameter files (simuran_params.py) if they exist.
 overwrite = True
