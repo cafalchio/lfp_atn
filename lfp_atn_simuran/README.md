@@ -14,3 +14,8 @@ See https://github.com/seankmartin/Claustrum_Experiment
 
 ## Install the code
 pip install -e .
+
+## TODO
+1. Refactor the analysis function folders.
+2. Pull out the per cell analysis from SIMURAN to analyse other things
+3. T-maze analysis

@@ -3,6 +3,7 @@ The simuran_fn_params are used to control the functions
 that will be performed on each recording in a loaded container.
 """
 
+# TODO include LFP spectograms?
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""

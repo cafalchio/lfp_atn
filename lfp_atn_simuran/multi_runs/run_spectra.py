@@ -76,7 +76,7 @@ def set_fixed_params(in_dict):
 
     return in_dict
 
-
+# TODO make sure this works and include in main params if so
 # Setup the actual parameters
 params = {"run_list": [], "to_merge": []}
 params = set_fixed_params(params)
