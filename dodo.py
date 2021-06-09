@@ -11,7 +11,7 @@ dirname = cfg.get("DEFAULT", "dirname")
 
 def task_list_openfield():
     return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "CL_openfield.py"),
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_openfield.py"),
         ["do_nothing.py"],
         num_workers=num_workers,
         dirname=dirname,
@@ -19,7 +19,7 @@ def task_list_openfield():
 
 def task_coherence():
     return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "coherence_atnx.py"),
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_coherence.py"),
         ["plot_coherence.py"],
         num_workers=num_workers,
         dirname=dirname,
@@ -28,25 +28,16 @@ def task_coherence():
 
 def task_lfp_plot():
     return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "lfp_plot.py"),
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_lfp_plot.py"),
         ["plot_lfp_eg.py"],
         num_workers=num_workers,
         dirname=dirname,
     )
 
 
-# def task_lfp_difference():
-#     return create_task(
-#         os.path.join(here, "lfp_atn_simuran", "multi_runs", "lfp_difference.py"),
-#         ["lfp_difference.py"],
-#         num_workers=num_workers,
-#         dirname=dirname,
-#     )
-
-
 def task_theta_power():
     return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "spectral_atnx.py"),
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_spectra.py"),
         ["simuran_theta_power.py"],
         num_workers=num_workers,
         dirname=dirname,
@@ -55,7 +46,7 @@ def task_theta_power():
 
 def task_lfp_rate():
     return create_task(
-        os.path.join(here, "lfp_atn_simuran", "multi_runs", "lfp_rate.py"),
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_lfp_rate.py"),
         ["simuran_lfp_rate.py"],
         num_workers=num_workers,
         dirname=dirname,
