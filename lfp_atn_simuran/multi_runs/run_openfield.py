@@ -3,7 +3,7 @@ simuran_multi_params describes running main.py for multiple
 different recordings, functions, etc.
 In theory, this could describe a full experiment.
 """
-
+import os
 
 def create_new_entry(batch_param_loc, fn_param_loc, add=""):
     def make_default_dict(add=""):
@@ -26,7 +26,6 @@ def create_new_entry(batch_param_loc, fn_param_loc, add=""):
 
 
 def set_file_locations():
-    import os
 
     output = []
 
@@ -37,7 +36,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_lfp_rate.py"
+                    "__thisdirname__", "..", "functions", "fn_list_recordings.py"
                 ),
                 "CSR{}".format(val),
             )
@@ -50,7 +49,7 @@ def set_file_locations():
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
                 os.path.join(
-                    "__thisdirname__", "..", "functions", "simuran_lfp_rate.py"
+                    "__thisdirname__", "..", "functions", "fn_list_recordings.py"
                 ),
                 "LSR{}".format(val),
             )
@@ -72,15 +71,16 @@ def set_fixed_params(in_dict):
     # EEG signals that were recorded in two second long trials
     in_dict["keep_all_data"] = False
 
-    # What data to merge
-    in_dict["to_merge"] = ["simuran_lfp_rate"]
     return in_dict
 
 
 # Setup the actual parameters
-params = {"run_list": []}
+params = {"run_list": [], "to_merge": []}
 params = set_fixed_params(params)
 
 for val in set_file_locations():
     param_dict = create_new_entry(val[0], val[1], val[2])
+    fn_name = os.path.splitext(os.path.basename(val[1]))[0]
+    if fn_name not in params["to_merge"]:
+        params["to_merge"].append(fn_name)
     params["run_list"].append(param_dict)
