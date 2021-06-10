@@ -5,7 +5,7 @@ from skm_pyutils.py_save import save_mixed_dict_to_csv
 
 try:
     from lfp_atn_simuran.analysis.lfp_clean import LFPClean
-    from lfp_atn_simuran.analysis.spike_lfp import recording_spike_lfp, sfc, nc_sfc
+    from lfp_atn_simuran.analysis.spike_lfp import recording_spike_lfp, nc_sfc
 
     do_analysis = True
 except ImportError:
@@ -129,14 +129,17 @@ def analyse_recording(
     # Just interface into spike_lfp with diff lfp signals to test the methods
 
     # TODO for now just checking, needs to be proper method
-    print(recording)
     lfp_signal = recording.signals[0].underlying
-    units = recording.units.get_available_units()
-    nc_unit = recording.units[0].underlying
-    nc_unit.set_unit_no(units[0][0])
+    units = recording.get_available_units()
+    for tetrode, unit_numbers in units:
+        if len(unit_numbers) != 0:
+            nc_unit = recording.units.group_by_property("group", tetrode)[0][0]
+            break
+
+    nc_unit = nc_unit.underlying
+    nc_unit.set_unit_no(unit_numbers[0])
     spike_times = nc_unit.get_unit_stamp()
     nc_sfc(lfp_signal, spike_times)
-    sfc(lfp_signal, spike_times)
     
 
 def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
