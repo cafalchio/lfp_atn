@@ -6,6 +6,7 @@ from skm_pyutils.py_save import save_mixed_dict_to_csv
 try:
     from lfp_atn_simuran.analysis.lfp_clean import LFPClean
     from lfp_atn_simuran.analysis.spike_lfp import recording_spike_lfp, nc_sfc
+    from lfp_atn_simuran.analysis.speed_lfp import main as speed_main
 
     do_analysis = True
 except ImportError:
@@ -130,6 +131,7 @@ def analyse_recording(
 
     # TODO for now just checking, needs to be proper method
     lfp_signal = recording.signals[0].underlying
+    spatial = recording.spatial.underlying
     units = recording.get_available_units()
     for tetrode, unit_numbers in units:
         if len(unit_numbers) != 0:
@@ -140,6 +142,7 @@ def analyse_recording(
     nc_unit.set_unit_no(unit_numbers[0])
     spike_times = nc_unit.get_unit_stamp()
     nc_sfc(lfp_signal, spike_times)
+    speed_main(spatial, lfp_signal, spike_times, 2)
     
 
 def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
