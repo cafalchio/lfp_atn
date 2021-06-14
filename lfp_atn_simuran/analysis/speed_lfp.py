@@ -6,7 +6,9 @@ from collections import OrderedDict
 from neurochat.nc_utils import butter_filter
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
+from skm_pyutils.py_table import list_to_df
 
 from icecream import ic
 
@@ -27,9 +29,9 @@ def speed_firing(self, spike_train, speed_sr, **kwargs):
     nearest_speed_samples = f_times_speed.round().astype(int)
     f_speeds = speed[nearest_speed_samples]
 
-    isi = np.diff(f_times)
+    isi = 1 / np.diff(f_times)
 
-    return isi, f_speeds[1:]
+    return f_speeds[1:], isi
 
 
 # 2. Compare speed and interburst interval
@@ -200,19 +202,30 @@ def main(self, lfp_signal, spike_train, binsize=1, speed_sr=10):
 
     fig, axes = plt.subplots(2, 1)
 
-    sns.lineplot(x=b, y=r, ax=axes[0])
-    sns.scatterplot(x=b1, y=r1, ax=axes[1])
+    pd_df = list_to_df([b1, r1], transpose=True, headers=["Speed", "LFP amplitude"])
+    pd_df = pd_df[pd_df["Speed"] <= 40]
+    pd_df["Speed"] = np.around(pd_df["Speed"])
+
+    sns.lineplot(x=b, y=r, ax=axes[1])
+    sns.lineplot(data=pd_df, x="Speed", y="LFP amplitude", ax=axes[0])
+    # sns.scatterplot(data=pd_df, x="Speed", y="LFP amplitude", ax=axes[1])
     fig.savefig("speed_theta.png", dpi=400)
     plt.close(fig)
 
     # Speed vs firing rate
     data = self.speed(spike_train, binsize=binsize, samplesPerSec=speed_sr)
     r, b = data["rate"], data["bins"]
-    r1, b1 = speed_firing(self, spike_train, speed_sr)
+    b1, r1 = speed_firing(self, spike_train, speed_sr)
+
+    pd_df = list_to_df([b1, r1], transpose=True, headers=["Speed", "Firing rate"])
+    pd_df = pd_df[pd_df["Speed"] <= 40]
+    pd_df = pd_df[pd_df["Firing rate"] < 20]
+    pd_df["Speed"] = np.around(pd_df["Speed"])
 
     fig, axes = plt.subplots(2, 1)
     sns.lineplot(x=b, y=r, ax=axes[0])
-    sns.scatterplot(x=b1, y=r1, ax=axes[1])
+    # sns.scatterplot(x=b1, y=r1, ax=axes[1])
+    sns.lineplot(data=pd_df, x="Speed", y="Firing rate", ax=axes[1])
     fig.savefig("speed_frate.png", dpi=400)
     plt.close(fig)
 
