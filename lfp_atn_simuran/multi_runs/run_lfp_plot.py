@@ -27,6 +27,7 @@ def create_new_entry(batch_param_loc, fn_param_loc, add=""):
 
 
 def set_file_locations():
+    import os
 
     output = []
 
