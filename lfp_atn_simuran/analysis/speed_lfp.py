@@ -6,17 +6,35 @@ from collections import OrderedDict
 from neurochat.nc_utils import butter_filter
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 
-# TODO include in here speed and theta/other relations
+from icecream import ic
 
 # TODO scatter plot the speed vs other things
 # Maybe can do one summary plot of speed vs other things
 
 # 1. Compare speed and firing rate
+def speed_firing(self, spike_train, speed_sr, **kwargs):
+    lim = kwargs.get("range", [0, self.get_duration()])
+    skip_rate = int(self.get_sampling_rate() / speed_sr)
+    slicer = slice(skip_rate, -skip_rate, skip_rate)
+    index_to_grab = np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
+
+    speed = self.get_speed()[index_to_grab][slicer]
+
+    f_times = spike_train.flatten()
+    f_times_speed = f_times * speed_sr
+    nearest_speed_samples = f_times_speed.round().astype(int)
+    f_speeds = speed[nearest_speed_samples]
+
+    isi = np.diff(f_times)
+
+    return isi, f_speeds[1:]
+
 
 # 2. Compare speed and interburst interval
-def ibi(self, speed, speed_sr, burst_thresh=5):
-    unitStamp = self.get_unit_stamp()
+def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
+    unitStamp = spike_train
     isi = 1000 * np.diff(unitStamp)
 
     burst_start = []
@@ -47,11 +65,12 @@ def ibi(self, speed, speed_sr, burst_thresh=5):
             num_burst += 1
         else:
             k += 1
+
     if num_burst:
         for j in range(0, num_burst - 1):
-            ibi.append(unitStamp[burst_start[j + 1]] - unitStamp[burst_end[j]])
-            time_start = unitStamp(burst_start[j + 1])
-            time_end = unitStamp(burst_end[j])
+            time_end = unitStamp[burst_start[j + 1]]
+            time_start = unitStamp[burst_end[j]]
+            ibi.append(time_end - time_start)
             speed_time_idx1 = int(time_start * speed_sr)
             speed_time_idx2 = int(time_end * speed_sr)
             burst_speed = speed[speed_time_idx1:speed_time_idx2]
@@ -60,19 +79,14 @@ def ibi(self, speed, speed_sr, burst_thresh=5):
 
         # ibi in sec, burst_duration in ms
     else:
-        logging.warning("No burst detected in {}".format(self.get_filename()))
-    ibi = 1000 * ibi
+        logging.warning("No burst detected")
+    ibi = 1000 * np.array(ibi)
 
-    return ibi, ibi_speeds
+    return ibi, np.array(ibi_speeds)
 
 
 def speed_ibi(self, spike_train, **kwargs):
-    _results = OrderedDict()
-    graph_data = {}
-    # When update = True, it will use the
-    update = kwargs.get("update", True)
-    # results for statistics, if False,
-    # i.e. in Multiple Regression, it will ignore updating
+    samples_per_sec = kwargs.get("samplesPerSec", 10)
     binsize = kwargs.get("binsize", 1)
     min_speed, max_speed = kwargs.get("range", [0, 40])
 
@@ -81,7 +95,7 @@ def speed_ibi(self, spike_train, **kwargs):
     min_speed = max(min_speed, np.floor(speed.min() / binsize) * binsize)
     bins = np.arange(min_speed, max_speed, binsize)
 
-    ibi, ibi_speeds = spike_train.wave_property()
+    ibi, ibi_speeds = calc_ibi(spike_train, speed, samples_per_sec)
     return ibi, ibi_speeds
     # visit_time = np.histogram(speed, bins)[0]
     # speedInd = np.digitize(speed, bins) - 1
@@ -145,7 +159,7 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
     visit_time = np.histogram(speed, bins)[0]
     speedInd = np.digitize(speed, bins) - 1
 
-    visit_time = visit_time / samples_per_sec
+    # visit_time = visit_time / samples_per_sec
 
     lfp_amplitudes = np.zeros_like(time_to_use)
     lfp_samples = lfp_signal.get_samples()
@@ -177,16 +191,35 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
     return rate, bins[:-1], lfp_amplitudes, speed
 
 
-def main(self, lfp_signal, spike_train, binsize=1):
-    r, b = speed_vs_amp(self, lfp_signal, 5, 12, binsize=binsize)
+def main(self, lfp_signal, spike_train, binsize=1, speed_sr=10):
 
-    plt.plot(b, r)
-    plt.show()
-    plt.close()
+    # Speed vs LFP power
+    r, b, r1, b1 = speed_vs_amp(
+        self, lfp_signal, 5, 12, binsize=binsize, samplesPerSec=speed_sr
+    )
 
-    data = self.speed(spike_train, binsize=binsize)
+    fig, axes = plt.subplots(2, 1)
+
+    sns.lineplot(x=b, y=r, ax=axes[0])
+    sns.scatterplot(x=b1, y=r1, ax=axes[1])
+    fig.savefig("speed_theta.png", dpi=400)
+    plt.close(fig)
+
+    # Speed vs firing rate
+    data = self.speed(spike_train, binsize=binsize, samplesPerSec=speed_sr)
     r, b = data["rate"], data["bins"]
+    r1, b1 = speed_firing(self, spike_train, speed_sr)
 
-    plt.plot(b, r)
-    plt.show()
-    plt.close()
+    fig, axes = plt.subplots(2, 1)
+    sns.lineplot(x=b, y=r, ax=axes[0])
+    sns.scatterplot(x=b1, y=r1, ax=axes[1])
+    fig.savefig("speed_frate.png", dpi=400)
+    plt.close(fig)
+
+    # Speed vs IBI
+    r, b = speed_ibi(self, spike_train, samplesPerSec=speed_sr)
+    fig, ax = plt.subplots()
+
+    sns.scatterplot(x=b, y=r, ax=ax)
+    fig.savefig("speed_ibi.png", dpi=400)
+    plt.close(fig)
