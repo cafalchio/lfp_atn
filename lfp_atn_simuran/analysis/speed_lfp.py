@@ -6,32 +6,21 @@ from collections import OrderedDict
 from neurochat.nc_utils import butter_filter
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from skm_pyutils.py_table import list_to_df
-
-from icecream import ic
-
-# TODO scatter plot the speed vs other things
-# Maybe can do one summary plot of speed vs other things
+import simuran
 
 # 1. Compare speed and firing rate
-def speed_firing(self, spike_train, speed_sr, **kwargs):
-    lim = kwargs.get("range", [0, self.get_duration()])
-    skip_rate = int(self.get_sampling_rate() / speed_sr)
-    slicer = slice(skip_rate, -skip_rate, skip_rate)
-    index_to_grab = np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
+def speed_firing(self, spike_train, **kwargs):
+    graph_results = self.speed(spike_train, **kwargs)
 
-    speed = self.get_speed()[index_to_grab][slicer]
+    results = {}
+    results["lin_fit_r"] = self.get_results()["Speed Pears R"]
+    results["lin_fit_p"] = self.get_results()["Speed Pears P"]
+    results["lin_speed"] = graph_results["bins"]
+    results["lin_rate"] = graph_results["rate"]
 
-    f_times = spike_train.flatten()
-    f_times_speed = f_times * speed_sr
-    nearest_speed_samples = f_times_speed.round().astype(int)
-    f_speeds = speed[nearest_speed_samples]
-
-    isi = 1 / np.diff(f_times)
-
-    return f_speeds[1:], isi
+    return results
 
 
 # 2. Compare speed and interburst interval
@@ -99,31 +88,6 @@ def speed_ibi(self, spike_train, **kwargs):
 
     ibi, ibi_speeds = calc_ibi(spike_train, speed, samples_per_sec)
     return ibi, ibi_speeds
-    # visit_time = np.histogram(speed, bins)[0]
-    # speedInd = np.digitize(speed, bins) - 1
-    # visit_time = visit_time / self.get_sampling_rate()
-
-    # rate = (
-    #     np.array([sum(vid_count[speedInd == i]) for i in range(len(bins))]) / visit_time
-    # )
-    # rate[np.isnan(rate)] = 0
-
-    # _results["Speed Skaggs"] = self.skaggs_info(rate, visit_time)
-
-    # rate = rate[visit_time > 1]
-    # bins = bins[visit_time > 1]
-
-    # fit_result = np.linfit(bins, rate)
-
-    # _results["Speed Pears R"] = fit_result["Pearson R"]
-    # _results["Speed Pears P"] = fit_result["Pearson P"]
-    # graph_data["bins"] = bins
-    # graph_data["rate"] = rate
-    # graph_data["fitRate"] = fit_result["yfit"]
-
-    # if update:
-    #     self.update_result(_results)
-    # return graph_data
 
 
 # 3. Compare theta and speed
@@ -187,35 +151,48 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
             )
             do_once = False
 
-    binned_lfp = [np.sum(lfp_amplitudes[speedInd == i]) for i in range(len(bins) - 1)]
-    rate = np.array(binned_lfp) / visit_time
+    # binned_lfp = [np.sum(lfp_amplitudes[speedInd == i]) for i in range(len(bins) - 1)]
+    # rate = np.array(binned_lfp) / visit_time
 
-    return rate, bins[:-1], lfp_amplitudes, speed
-
-
-def main(self, lfp_signal, spike_train, binsize=1, speed_sr=10):
-
-    # Speed vs LFP power
-    r, b, r1, b1 = speed_vs_amp(
-        self, lfp_signal, 5, 12, binsize=binsize, samplesPerSec=speed_sr
+    pd_df = list_to_df(
+        [speed, lfp_amplitudes], transpose=True, headers=["Speed", "LFP amplitude"]
     )
-
-    fig, axes = plt.subplots(2, 1)
-
-    pd_df = list_to_df([b1, r1], transpose=True, headers=["Speed", "LFP amplitude"])
     pd_df = pd_df[pd_df["Speed"] <= 40]
     pd_df["Speed"] = np.around(pd_df["Speed"])
 
-    sns.lineplot(x=b, y=r, ax=axes[1])
-    sns.lineplot(data=pd_df, x="Speed", y="LFP amplitude", ax=axes[0])
-    # sns.scatterplot(data=pd_df, x="Speed", y="LFP amplitude", ax=axes[1])
-    fig.savefig("speed_theta.png", dpi=400)
-    plt.close(fig)
+    return pd_df
+
+
+def main(spatial, lfp_signal, spike_train, binsize=1, speed_sr=10):
+    """Perform speed to lfp calculations."""
+    # This bit can be performed without spike info
+    simuran.set_plot_style()
+    results = {}
+    skip_rate = int(spatial.get_sampling_rate() / speed_sr)
+    slicer = slice(skip_rate, -skip_rate, skip_rate)
+    speed = spatial.get_speed()[slicer]
+    results["mean_speed"] = np.mean(speed)
+    results["duration"] = spatial.get_duration()
+    results["distance"] = results["mean_speed"] * results["duration"]
+
+    # Speed vs LFP power
+    pd_df = speed_vs_amp(
+        spatial, lfp_signal, 5, 12, binsize=binsize, samplesPerSec=speed_sr
+    )
+
+    fig, ax = plt.subplots()
+    sns.lineplot(data=pd_df, x="Speed", y="LFP amplitude", ax=ax)
+    # TODO fill filename
+    simuran.despine()
+    speed_amp_fig = simuran.SimuranFigure(fig, filename=None, done=True)
+    return results, speed_amp_fig
+
+    # This part requires spike info
 
     # Speed vs firing rate
-    data = self.speed(spike_train, binsize=binsize, samplesPerSec=speed_sr)
+    data = spatial.speed(spike_train, binsize=binsize, samplesPerSec=speed_sr)
     r, b = data["rate"], data["bins"]
-    b1, r1 = speed_firing(self, spike_train, speed_sr)
+    b1, r1 = speed_firing(spatial, spike_train, speed_sr)
 
     pd_df = list_to_df([b1, r1], transpose=True, headers=["Speed", "Firing rate"])
     pd_df = pd_df[pd_df["Speed"] <= 40]
@@ -230,7 +207,7 @@ def main(self, lfp_signal, spike_train, binsize=1, speed_sr=10):
     plt.close(fig)
 
     # Speed vs IBI
-    r, b = speed_ibi(self, spike_train, samplesPerSec=speed_sr)
+    r, b = speed_ibi(spatial, spike_train, samplesPerSec=speed_sr)
     fig, ax = plt.subplots()
 
     sns.scatterplot(x=b, y=r, ax=ax)
