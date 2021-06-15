@@ -15,6 +15,8 @@ def parse_cfg_info():
         "clean_method": cfg.get("Default", "SignalType"),
         "fmin": float(cfg.get("Default", "MinFrequency")),
         "fmax": float(cfg.get("Default", "MaxFrequency")),
+        "theta_min": float(cfg.get("Default", "ThetaMin")),
+        "theta_max": float(cfg.get("Default", "ThetaMax")),
         "clean_kwargs": clean_kwargs,
     }
     return kwargs

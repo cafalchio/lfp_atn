@@ -1,14 +1,16 @@
 import logging
 from copy import deepcopy
 from math import floor, ceil
-from collections import OrderedDict
+import os
 
 from neurochat.nc_utils import butter_filter
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from skm_pyutils.py_table import list_to_df
+from skm_pyutils.py_plot import UnicodeGrabber
 import simuran
+import pandas as pd
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
@@ -173,7 +175,7 @@ def speed_lfp_amp(
     fmin=5,
     fmax=12,
     speed_sr=10,
-    **kwargs
+    **kwargs,
 ):
     # TODO should get this to work with non-NC
     clean_kwargs = kwargs.get("clean_kwargs", {})
@@ -204,6 +206,8 @@ def speed_lfp_amp(
         # Speed vs LFP power
         pd_df = speed_vs_amp(spatial, lfp_signal, fmin, fmax, samplesPerSec=speed_sr)
 
+        results[f"{name}_df"] = pd_df
+
         fig, ax = plt.subplots()
         sns.lineplot(data=pd_df, x="Speed", y="LFP amplitude", ax=ax)
         simuran.despine()
@@ -212,9 +216,102 @@ def speed_lfp_amp(
             fig, filename=fname, done=True, format=fmt, dpi=400
         )
         figures.append(speed_amp_fig)
-    
+
     return results
 
+
+def define_recording_group(base_dir):
+    # TODO change this to allow running on other places
+    main_dir = r"D:\SubRet_recordings_imaging"
+    dirs = base_dir[len(main_dir + os.sep):].split(os.sep)
+    dir_to_check = dirs[0]
+    if dir_to_check.startswith("CS"):
+        group = "Control"
+    elif dir_to_check.startswith("LS"):
+        group = "Lesion"
+    else:
+        group = "Undefined"
+    return group
+
+def combine_results(info, extra_info):
+    """This uses the pickle output from SIMURAN."""
+    simuran.set_plot_style()
+    data_animal_list, fname_animal_list = info
+    out_dir, name = extra_info
+    os.makedirs(out_dir, exist_ok=True)
+
+    n_ctrl_animals = 0
+    n_lesion_animals = 0
+    df_lists = []
+    for item_list, fname_list in zip(data_animal_list, fname_animal_list):
+        r_ctrl = 0
+        r_les = 0
+        for item_dict, fname in zip(item_list, fname_list):
+            item_dict = item_dict["speed_lfp_amp"]
+            data_set = define_recording_group(os.path.dirname(fname))
+            if data_set == "Control":
+                r_ctrl += 1
+            else:
+                r_les += 1
+
+            for r in ["SUB", "RSC"]:
+                id_ = item_dict[r + "_df"]
+                id_["Group"] = data_set
+                id_["region"] = r
+                df_lists.append(id_)
+
+        n_ctrl_animals += r_ctrl / len(fname_list)
+        n_lesion_animals += r_les / len(fname_list)
+    print(f"{n_ctrl_animals} CTRL animals, {n_lesion_animals} Lesion animals")
+
+    df = pd.concat(df_lists, ignore_index=True)
+    df.replace("Control", "Control (ATN,   N = 6)", inplace=True)
+    df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
+
+    print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
+    for ci, oname in zip([95, None], ["_ci", ""]):
+        sns.lineplot(
+            data=df[df["region"] == "SUB"],
+            x="Speed",
+            y="LFP amplitude",
+            style="Group",
+            hue="Group",
+            ci=ci,
+            estimator=np.median,
+        )
+        simuran.despine()
+        plt.xlabel("Speed (cm / s)")
+        plt.ylabel("Amplitude ({}V)".format(UnicodeGrabber.get("micro")))
+        plt.title("Subicular LFP power (median)")
+
+        os.makedirs(os.path.join(out_dir, "summary"), exist_ok=True)
+        plt.savefig(
+            os.path.join(out_dir, "summary", name + "--sub--speed--theta{}.png".format(oname)),
+            dpi=400,
+        )
+
+        plt.close("all")
+
+        sns.lineplot(
+            data=df[df["region"] == "RSC"],
+            x="Speed",
+            y="LFP amplitude",
+            style="Group",
+            hue="Group",
+            ci=ci,
+            estimator=np.median,
+        )
+        simuran.despine()
+        plt.xlabel("Speed (cm / s)")
+        plt.ylabel("Amplitude ({}V)".format(UnicodeGrabber.get("micro")))
+        plt.title("Retrosplenial LFP power (median)")
+
+        plt.savefig(
+            os.path.join(out_dir, "summary", name + "--rsc--speed--theta{}.png".format(oname)),
+            dpi=400,
+        )
+
+        plt.close("all")
 
 def main(spatial, lfp_signal, spike_train, binsize=1, speed_sr=10):
     """Perform speed to lfp calculations."""

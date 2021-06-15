@@ -51,3 +51,11 @@ def task_lfp_rate():
         num_workers=num_workers,
         dirname=dirname,
     )
+
+def task_lfp_speed():
+    return create_task(
+        os.path.join(here, "lfp_atn_simuran", "multi_runs", "run_speed_theta.py"),
+        ["speed_lfp.py"],
+        num_workers=num_workers,
+        dirname=dirname,
+    )
