@@ -149,4 +149,5 @@ fn_params = {
     "load_all": load_all,
     "to_load": to_load,
     "select_recordings": select_recordings,
+    "handle_errors": False,
 }

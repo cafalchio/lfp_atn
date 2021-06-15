@@ -81,6 +81,7 @@ def setup_loader():
     loader_kwargs = {
         "system": "Axona",
         "pos_extension": ".pos",
+        "enforce_data": False,
     }
 
     output_dict = {
