@@ -66,6 +66,7 @@ def plot_all_spectrum(info, out_dir, name):
     df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
     df[["frequency", "power"]] = df[["frequency", "power"]].apply(pd.to_numeric)
 
+    print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
     for ci, oname in zip([95, None], ["_ci", ""]):
         sns.lineplot(
             data=df[df["region"] == "SUB"],
@@ -81,7 +82,6 @@ def plot_all_spectrum(info, out_dir, name):
         plt.ylabel("Power (uV^2 / Hz)")
         plt.title("Subicular LFP power (median)")
 
-        print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
 
         os.makedirs(os.path.join(out_dir, "summary"), exist_ok=True)
         plt.savefig(
@@ -104,8 +104,6 @@ def plot_all_spectrum(info, out_dir, name):
         plt.xlabel("Frequency (Hz)")
         plt.ylabel("Power (uV^2 / Hz)")
         plt.title("Retrosplenial LFP power (median)")
-
-        print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
 
         plt.savefig(
             os.path.join(out_dir, "summary", name + "--rsc--power{}.png".format(oname)),

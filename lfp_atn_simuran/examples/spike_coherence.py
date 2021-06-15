@@ -134,11 +134,13 @@ def analyse_recording(
         "pick_property": "group",
         "channels": ["LFP"],
     }
-    speed_lfp_amp(
+    results = speed_lfp_amp(
         recording, figures, base_dir, clean_method="pick", clean_kwargs=clean_kwargs
     )
     for figure in figures:
         figure.savefig()
+
+    print(results)
 
     # nc_sfc(lfp_signal, spike_times)
 
