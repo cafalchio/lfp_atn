@@ -5,8 +5,8 @@ from skm_pyutils.py_save import save_mixed_dict_to_csv
 
 try:
     from lfp_atn_simuran.analysis.lfp_clean import LFPClean
-    from lfp_atn_simuran.analysis.spike_lfp import recording_spike_lfp, nc_sfc
-    from lfp_atn_simuran.analysis.speed_lfp import main as speed_main
+    # from lfp_atn_simuran.analysis.spike_lfp import speed_lfp
+    from lfp_atn_simuran.analysis.speed_lfp import speed_lfp_amp
 
     do_analysis = True
 except ImportError:
@@ -24,7 +24,7 @@ def recording_info():
 
         # If the wires were bundled, or any other kind of grouping existed
         # If no grouping, groups = [i for i in range(num_signals)]
-        groups = [0, 0, 1, 1]
+        groups = ["LFP", "LFP", "LFP", "LFP"]
         for i in range(2, 9):
             groups.append(i)
             groups.append(i)
@@ -128,22 +128,20 @@ def analyse_recording(
     #     recording, min_f=min_f, max_f=max_f, method_kwargs=clean_kwargs
     # )
     # Just interface into spike_lfp with diff lfp signals to test the methods
+    figures = []
+    base_dir = os.path.dirname(recording.source_file)
+    clean_kwargs = {
+        "pick_property": "group",
+        "channels": ["LFP"],
+    }
+    speed_lfp_amp(
+        recording, figures, base_dir, clean_method="pick", clean_kwargs=clean_kwargs
+    )
+    for figure in figures:
+        figure.savefig()
 
-    # TODO for now just checking, needs to be proper method
-    lfp_signal = recording.signals[0].underlying
-    spatial = recording.spatial.underlying
-    units = recording.get_available_units()
-    for tetrode, unit_numbers in units:
-        if len(unit_numbers) != 0:
-            nc_unit = recording.units.group_by_property("group", tetrode)[0][0]
-            break
+    # nc_sfc(lfp_signal, spike_times)
 
-    nc_unit = nc_unit.underlying
-    nc_unit.set_unit_no(unit_numbers[0])
-    spike_times = nc_unit.get_unit_stamp()
-    nc_sfc(lfp_signal, spike_times)
-    speed_main(spatial, lfp_signal, spike_times, 2)
-    
 
 def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
     """Create a single recording for analysis."""

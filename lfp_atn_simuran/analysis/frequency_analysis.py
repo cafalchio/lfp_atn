@@ -166,7 +166,7 @@ def powers(
         results["{} high gamma rel".format(name)] = high_gamma_power["relative_power"]
 
         # Do power spectra
-        out_name = name_plot(recording, base_dir, f"power_{name}")
+        out_name = name_plot(recording, base_dir, f"_power_{name}")
         sr = signal.sampling_rate
         fig, ax = plt.subplots()
         group = define_recording_group(base_dir)

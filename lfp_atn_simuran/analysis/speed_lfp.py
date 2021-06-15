@@ -10,6 +10,8 @@ import seaborn as sns
 from skm_pyutils.py_table import list_to_df
 import simuran
 
+from lfp_atn_simuran.analysis.lfp_clean import LFPClean
+
 # 1. Compare speed and firing rate
 def speed_firing(self, spike_train, **kwargs):
     graph_results = self.speed(spike_train, **kwargs)
@@ -115,17 +117,6 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
     index_to_grab = np.logical_and(self.get_time() >= lim[0], self.get_time() <= lim[1])
     time_to_use = self.get_time()[index_to_grab][slicer]
     speed = self.get_speed()[index_to_grab][slicer]
-    binsize = kwargs.get("binsize", 2)
-    min_speed, max_speed = kwargs.get("range", [0, 40])
-
-    max_speed = min(max_speed, np.ceil(speed.max() / binsize) * binsize)
-    min_speed = max(min_speed, np.floor(speed.min() / binsize) * binsize)
-    bins = np.arange(min_speed, max_speed, binsize)
-
-    visit_time = np.histogram(speed, bins)[0]
-    speedInd = np.digitize(speed, bins) - 1
-
-    # visit_time = visit_time / samples_per_sec
 
     lfp_amplitudes = np.zeros_like(time_to_use)
     lfp_samples = lfp_signal.get_samples()
@@ -151,6 +142,17 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
             )
             do_once = False
 
+    # binsize = kwargs.get("binsize", 2)
+    # min_speed, max_speed = kwargs.get("range", [0, 40])
+
+    # max_speed = min(max_speed, np.ceil(speed.max() / binsize) * binsize)
+    # min_speed = max(min_speed, np.floor(speed.min() / binsize) * binsize)
+    # bins = np.arange(min_speed, max_speed, binsize)
+
+    # visit_time = np.histogram(speed, bins)[0]
+    # speedInd = np.digitize(speed, bins) - 1
+
+    # visit_time = visit_time / samples_per_sec
     # binned_lfp = [np.sum(lfp_amplitudes[speedInd == i]) for i in range(len(bins) - 1)]
     # rate = np.array(binned_lfp) / visit_time
 
@@ -161,6 +163,57 @@ def speed_vs_amp(self, lfp_signal, low_f, high_f, filter_kwargs=None, **kwargs):
     pd_df["Speed"] = np.around(pd_df["Speed"])
 
     return pd_df
+
+
+def speed_lfp_amp(
+    recording,
+    figures,
+    base_dir,
+    clean_method="avg",
+    fmin=5,
+    fmax=12,
+    speed_sr=10,
+    **kwargs
+):
+    # TODO should get this to work with non-NC
+    clean_kwargs = kwargs.get("clean_kwargs", {})
+    lc = LFPClean(method=clean_method, visualise=False)
+    signals_grouped_by_region = lc.clean(
+        recording.signals, 0.5, 100, method_kwargs=clean_kwargs
+    )["signals"]
+    fmt = kwargs.get("image_format", "png")
+
+    # Single values
+    spatial = recording.spatial.underlying
+    simuran.set_plot_style()
+    results = {}
+    skip_rate = int(spatial.get_sampling_rate() / speed_sr)
+    slicer = slice(skip_rate, -skip_rate, skip_rate)
+    speed = spatial.get_speed()[slicer]
+    results["mean_speed"] = np.mean(speed)
+    results["duration"] = spatial.get_duration()
+    results["distance"] = results["mean_speed"] * results["duration"]
+
+    basename = recording.get_name_for_save(base_dir)
+
+    # Figures
+    simuran.set_plot_style()
+    for name, signal in signals_grouped_by_region.items():  #
+        lfp_signal = signal
+
+        # Speed vs LFP power
+        pd_df = speed_vs_amp(spatial, lfp_signal, fmin, fmax, samplesPerSec=speed_sr)
+
+        fig, ax = plt.subplots()
+        sns.lineplot(data=pd_df, x="Speed", y="LFP amplitude", ax=ax)
+        simuran.despine()
+        fname = basename + "_speed_theta_{}".format(name)
+        speed_amp_fig = simuran.SimuranFigure(
+            fig, filename=fname, done=True, format=fmt, dpi=400
+        )
+        figures.append(speed_amp_fig)
+    
+    return results
 
 
 def main(spatial, lfp_signal, spike_train, binsize=1, speed_sr=10):
