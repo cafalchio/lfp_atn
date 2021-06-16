@@ -21,6 +21,7 @@ def parse_cfg_info():
         "delta_max": float(cfg.get("Default", "DeltaMax")),
         "psd_scale": cfg.get("Default", "PsdScale"),
         "clean_kwargs": clean_kwargs,
+        "cfg_base_dir" : cfg.get("Path", "BaseDir")
     }
     return kwargs
 
