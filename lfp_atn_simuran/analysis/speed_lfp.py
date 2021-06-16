@@ -266,7 +266,7 @@ def combine_results(info, extra_info):
 
     df = pd.concat(df_lists, ignore_index=True)
     df.replace("Control", "Control (ATN,   N = 6)", inplace=True)
-    df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
+    df.replace("Lesion", "Lesion  (ATNx, N = 6)", inplace=True)
 
     print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
     for ci, oname in zip([95, None], ["_ci", ""]):

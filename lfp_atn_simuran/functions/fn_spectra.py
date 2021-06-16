@@ -94,10 +94,27 @@ def setup_output():
     """Establish what results of the functions will be saved."""
 
     # This should list the results to save to a csv
-    save_list = [("results", "powers")]
+    base_list = ["results", "powers"]
+    friendly_names = [
+        "SUB delta",
+        "SUB theta",
+        "SUB low gamma",
+        "SUB high gamma",
+        "SUB total",
+        "SUB delta rel",
+        "SUB theta rel",
+        "RSC delta",
+        "RSC theta",
+        "RSC low gamma",
+        "RSC high gamma",
+        "RSC total",
+        "RSC delta rel",
+        "RSC theta rel",
+    ]
+    save_list = [base_list + [fname] for fname in friendly_names]
 
     # You can name each of these outputs
-    output_names = []
+    output_names = friendly_names
 
     return save_list, output_names
 

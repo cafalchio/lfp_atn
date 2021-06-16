@@ -5,7 +5,6 @@ def do_fig(info, extra_info):
 
 
 def do_spectrum(info, extra_info):
-    data, fnames = info
     out_dir, name = extra_info
     plot_all_spectrum(info, out_dir, name)
 
@@ -20,6 +19,12 @@ def plot_all_spectrum(info, out_dir, name):
     import simuran
 
     from neurochat.nc_utils import smooth_1d
+    from lfp_atn_simuran.analysis.parse_cfg import parse_cfg_info
+    from skm_pyutils.py_plot import UnicodeGrabber
+
+    cfg = parse_cfg_info()
+
+    scale = cfg["psd_scale"]
 
     os.makedirs(out_dir, exist_ok=True)
 
@@ -37,6 +42,7 @@ def plot_all_spectrum(info, out_dir, name):
         r_ctrl = 0
         r_les = 0
         for item_dict, _ in zip(item_list, fname_list):
+            item_dict = item_dict["powers"]
             data_set = item_dict["SUB" + " welch"][2][0]
             if data_set == "Control":
                 r_ctrl += 1
@@ -63,7 +69,7 @@ def plot_all_spectrum(info, out_dir, name):
     data = np.array(parsed_info)
     df = pd.DataFrame(data, columns=["frequency", "power", "Group", "region"])
     df.replace("Control", "Control (ATN,   N = 6)", inplace=True)
-    df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
+    df.replace("Lesion", "Lesion  (ATNx, N = 6)", inplace=True)
     df[["frequency", "power"]] = df[["frequency", "power"]].apply(pd.to_numeric)
 
     print("Saving plots to {}".format(os.path.join(out_dir, "summary")))
@@ -79,9 +85,16 @@ def plot_all_spectrum(info, out_dir, name):
         )
         sns.despine(offset=0, trim=True)
         plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power (uV^2 / Hz)")
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            plt.ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            plt.ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
         plt.title("Subicular LFP power (median)")
-
+        plt.tight_layout()
 
         os.makedirs(os.path.join(out_dir, "summary"), exist_ok=True)
         plt.savefig(
@@ -102,8 +115,16 @@ def plot_all_spectrum(info, out_dir, name):
         )
         sns.despine(offset=0, trim=True)
         plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power (uV^2 / Hz)")
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            plt.ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            plt.ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
         plt.title("Retrosplenial LFP power (median)")
+        plt.tight_layout()
 
         plt.savefig(
             os.path.join(out_dir, "summary", name + "--rsc--power{}.png".format(oname)),
@@ -157,7 +178,7 @@ def plot_all_lfp(info, out_dir, name):
     data = np.concatenate(parsed_info, axis=1)
     df = pd.DataFrame(data.transpose(), columns=["frequency", "coherence", "Group"])
     df.replace("Control", "Control (ATN,   N = 6)", inplace=True)
-    df.replace("Lesion", "Lesion  (ATNx, N = 5)", inplace=True)
+    df.replace("Lesion", "Lesion  (ATNx, N = 6)", inplace=True)
     df[["frequency", "coherence"]] = df[["frequency", "coherence"]].apply(pd.to_numeric)
 
     sns.lineplot(

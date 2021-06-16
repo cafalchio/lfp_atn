@@ -7,11 +7,14 @@ import simuran
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+from skm_pyutils.py_plot import UnicodeGrabber
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
 
-def plot_psd(x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100):
+def plot_psd(
+    x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100, scale="volts"
+):
     f, Pxx = welch(
         x.samples.to(u.uV).value,
         fs=fs,
@@ -24,18 +27,35 @@ def plot_psd(x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100):
     f = f[np.nonzero((f >= fmin) & (f <= fmax))]
     Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
 
+    ylabel = None
+    if scale == "volts":
+        micro = UnicodeGrabber.get("micro")
+        pow2 = UnicodeGrabber.get("pow2")
+        ylabel = f"PSD ({micro}V{pow2} / Hz)"
+    elif scale == "decibels":
+        # Convert to full scale relative dB (so max at 0)
+        Pxx_max = np.max(Pxx)
+        Pxx = 10 * np.log10(Pxx / Pxx_max)
+        ylabel = "PSD (dB)"
+    else:
+        raise ValueError("Unsupported scale {}".format(scale))
     sns.lineplot(x=f, y=Pxx, ax=ax)
     simuran.despine()
     ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("PSD (\u00b5V\u00b2 / Hz)")
+    ax.set_ylabel(ylabel)
 
-    return np.array([f, Pxx, [group] * len(f), [region] * len(f)])
+    if scale == "volts":
+        return np.array([f, Pxx, [group] * len(f), [region] * len(f)])
+    else:
+        return (np.array([f, Pxx, [group] * len(f), [region] * len(f)]), Pxx_max)
 
 
 def per_animal_psd(recording_container, base_dir, figures, **kwargs):
     simuran.set_plot_style()
     item_list = [r.results for r in recording_container]
     parsed_info = []
+
+    scale = kwargs.get("psd_scale", "volts")
 
     fmt = kwargs.get("image_format", "png")
 
@@ -63,7 +83,16 @@ def per_animal_psd(recording_container, base_dir, figures, **kwargs):
         )
         simuran.despine()
         plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power (uV^2 / Hz)")
+
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            ax.set_ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            ax.set_ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
+        plt.tight_layout()
 
         name = recording_container.base_dir[len(base_dir + os.sep) :].replace(
             os.sep, "--"
@@ -83,7 +112,15 @@ def per_animal_psd(recording_container, base_dir, figures, **kwargs):
         )
         simuran.despine()
         plt.xlabel("Frequency (Hz)")
-        plt.ylabel("Power (uV^2 / Hz)")
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            ax.set_ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            ax.set_ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
+        plt.tight_layout()
 
         out_name = name + "--rsc--power{}".format(oname)
         fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
@@ -114,6 +151,11 @@ def powers(
         recording.signals, fmin, fmax, method_kwargs=clean_kwargs
     )["signals"]
     fmt = kwargs.get("image_format", "png")
+    psd_scale = kwargs.get("psd_scale", "volts")
+    theta_min = kwargs.get("theta_min", 6)
+    theta_max = kwargs.get("theta_max", 10)
+    delta_min = kwargs.get("delta_min", 1.5)
+    delta_max = kwargs.get("delta_max", 4.0)
 
     results = {}
     window_sec = 2
@@ -131,13 +173,12 @@ def powers(
         results["{} low gamma rel".format(name)] = np.nan
         results["{} high gamma rel".format(name)] = np.nan
 
-        # TODO find good bands from a paper
         sig_in_use = signal.to_neurochat()
         delta_power = sig_in_use.bandpower(
-            [1.5, 4], window_sec=window_sec, band_total=True
+            [delta_min, delta_max], window_sec=window_sec, band_total=True
         )
         theta_power = sig_in_use.bandpower(
-            [6, 10], window_sec=window_sec, band_total=True
+            [theta_min, theta_max], window_sec=window_sec, band_total=True
         )
         low_gamma_power = sig_in_use.bandpower(
             [30, 55], window_sec=window_sec, band_total=True
@@ -170,9 +211,16 @@ def powers(
         sr = signal.sampling_rate
         fig, ax = plt.subplots()
         group = define_recording_group(base_dir)
-        results["{} welch".format(name)] = plot_psd(
-            signal, ax, sr, group, name, fmin=fmin, fmax=fmax
-        )
+        if psd_scale == "volts":
+            results["{} welch".format(name)] = plot_psd(
+                signal, ax, sr, group, name, fmin=fmin, fmax=fmax, scale=psd_scale
+            )
+        else:
+            r1, r2 = plot_psd(
+                signal, ax, sr, group, name, fmin=fmin, fmax=fmax, scale=psd_scale
+            )
+            results["{} welch".format(name)] = r1
+            results["{} max f".format(name)] = r2
         fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
         figures.append(fig)
 

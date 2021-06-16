@@ -17,6 +17,13 @@ def parse_cfg_info():
         "fmax": float(cfg.get("Default", "MaxFrequency")),
         "theta_min": float(cfg.get("Default", "ThetaMin")),
         "theta_max": float(cfg.get("Default", "ThetaMax")),
+        "delta_min": float(cfg.get("Default", "DeltaMin")),
+        "delta_max": float(cfg.get("Default", "DeltaMax")),
+        "psd_scale": cfg.get("Default", "PsdScale"),
         "clean_kwargs": clean_kwargs,
     }
     return kwargs
+
+if __name__ == "__main__":
+    from pprint import pprint
+    pprint(parse_cfg_info())
