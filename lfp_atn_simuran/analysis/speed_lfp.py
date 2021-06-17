@@ -400,7 +400,8 @@ def recording_speed_ibi(recording, out_dir, base_dir, **kwargs):
         unit.units_to_use = to_analyse
         out_str_start = str(unit.group)
         no_data_loaded = unit.underlying is None
-        available_units = unit.underlying.get_unit_list()
+        if not no_data_loaded:
+            available_units = unit.underlying.get_unit_list()
 
         for cell in to_analyse:
             name_for_save = out_str_start + "_" + str(cell)
