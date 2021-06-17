@@ -2,6 +2,7 @@ import logging
 from copy import deepcopy
 from math import floor, ceil
 import os
+import seaborn as sns
 
 from neurochat.nc_utils import butter_filter
 import matplotlib.pyplot as plt
@@ -11,26 +12,39 @@ from skm_pyutils.py_table import list_to_df
 from skm_pyutils.py_plot import UnicodeGrabber
 import simuran
 import pandas as pd
+import scipy.stats
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
 
 # 1. Compare speed and firing rate
 def speed_firing(self, spike_train, **kwargs):
     graph_results = self.speed(spike_train, **kwargs)
+    ax = kwargs.get("ax", None)
 
     results = {}
     results["lin_fit_r"] = self.get_results()["Speed Pears R"]
     results["lin_fit_p"] = self.get_results()["Speed Pears P"]
-    results["lin_speed"] = graph_results["bins"]
-    results["lin_rate"] = graph_results["rate"]
 
-    return results
+    bins = np.array([int(b) for b in graph_results["bins"]])
+    rate = np.array([float(r) for r in graph_results["rate"]])
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    df = list_to_df([bins, rate], transpose=True, headers=["Speed", "Firing rate"])
+
+    sns.lineplot(data=df, x="Speed", y="Firing rate", ax=ax)
+    ax.set_title("Speed vs Firing rate")
+    ax.set_xlabel("Speed (cm / s)")
+    ax.set_ylabel("Firing rate (spike / s)")
+
+    return results, ax
 
 
 # 2. Compare speed and interburst interval
 def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
     unitStamp = spike_train
-    isi = 1000 * np.diff(unitStamp)
+    isi = np.diff(unitStamp)
 
     burst_start = []
     burst_end = []
@@ -66,8 +80,8 @@ def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
             time_end = unitStamp[burst_start[j + 1]]
             time_start = unitStamp[burst_end[j]]
             ibi.append(time_end - time_start)
-            speed_time_idx1 = int(time_start * speed_sr)
-            speed_time_idx2 = int(time_end * speed_sr)
+            speed_time_idx1 = int(floor(time_start * speed_sr))
+            speed_time_idx2 = int(ceil(time_end * speed_sr))
             burst_speed = speed[speed_time_idx1:speed_time_idx2]
             avg_speed = np.mean(burst_speed)
             ibi_speeds.append(avg_speed)
@@ -75,7 +89,8 @@ def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
         # ibi in sec, burst_duration in ms
     else:
         logging.warning("No burst detected")
-    ibi = 1000 * np.array(ibi)
+        return None, None
+    ibi = np.array(ibi)
 
     return ibi, np.array(ibi_speeds)
 
@@ -84,6 +99,7 @@ def speed_ibi(self, spike_train, **kwargs):
     samples_per_sec = kwargs.get("samplesPerSec", 10)
     binsize = kwargs.get("binsize", 1)
     min_speed, max_speed = kwargs.get("range", [0, 40])
+    ax = kwargs.get("ax", None)
 
     speed = self.get_speed()
     max_speed = min(max_speed, np.ceil(speed.max() / binsize) * binsize)
@@ -91,7 +107,22 @@ def speed_ibi(self, spike_train, **kwargs):
     bins = np.arange(min_speed, max_speed, binsize)
 
     ibi, ibi_speeds = calc_ibi(spike_train, speed, samples_per_sec)
-    return ibi, ibi_speeds
+    if ibi is None:
+        return None, None, np.nan, np.nan, 0
+    spear_r, spear_p = scipy.stats.spearmanr(ibi_speeds, ibi)
+
+    pd_df = list_to_df([ibi_speeds, ibi], transpose=True, headers=["Speed", "IBI"])
+    pd_df = pd_df[pd_df["Speed"] <= 40]
+    pd_df["Speed"] = np.around(pd_df["Speed"]).astype(int)
+
+    if ax is None:
+        _, ax = plt.subplots()
+    sns.lineplot(data=pd_df, x="Speed", y="IBI", ci=None, ax=ax)
+    ax.set_ylabel("IBI (s)")
+    ax.set_xlabel("Speed (cm / s)")
+    ax.set_title("Speed vs IBI")
+
+    return pd_df, ax, spear_r, spear_p, len(ibi) + 1
 
 
 # 3. Compare theta and speed
@@ -223,7 +254,7 @@ def speed_lfp_amp(
 def define_recording_group(base_dir):
     # TODO change this to allow running on other places
     main_dir = r"D:\SubRet_recordings_imaging"
-    dirs = base_dir[len(main_dir + os.sep):].split(os.sep)
+    dirs = base_dir[len(main_dir + os.sep) :].split(os.sep)
     dir_to_check = dirs[0]
     if dir_to_check.startswith("CS"):
         group = "Control"
@@ -232,6 +263,7 @@ def define_recording_group(base_dir):
     else:
         group = "Undefined"
     return group
+
 
 def combine_results(info, extra_info):
     """This uses the pickle output from SIMURAN."""
@@ -286,7 +318,9 @@ def combine_results(info, extra_info):
 
         os.makedirs(os.path.join(out_dir, "summary"), exist_ok=True)
         plt.savefig(
-            os.path.join(out_dir, "summary", name + "--sub--speed--theta{}.png".format(oname)),
+            os.path.join(
+                out_dir, "summary", name + "--sub--speed--theta{}.png".format(oname)
+            ),
             dpi=400,
         )
 
@@ -307,11 +341,109 @@ def combine_results(info, extra_info):
         plt.title("Retrosplenial LFP power (median)")
 
         plt.savefig(
-            os.path.join(out_dir, "summary", name + "--rsc--speed--theta{}.png".format(oname)),
+            os.path.join(
+                out_dir, "summary", name + "--rsc--speed--theta{}.png".format(oname)
+            ),
             dpi=400,
         )
 
         plt.close("all")
+
+
+def recording_ibi_headings():
+    return [
+        "IBI R",
+        "IBI P",
+        "Number of bursts",
+        "Speed R",
+        "Speed P",
+        "Mean speed",
+        "Mean firing rate",
+    ]
+
+
+def recording_speed_ibi(recording, out_dir, base_dir, **kwargs):
+    """This is performed per cell in the recording."""
+    # How many results expected in a row?
+    NUM_RESULTS = len(recording_ibi_headings())
+    img_format = kwargs.get("img_format", ".png")
+
+    simuran.set_plot_style()
+
+    output = {}
+    # To avoid overwriting what has been set to analyse
+    all_analyse = deepcopy(recording.get_set_units())
+
+    # Unit contains probe/tetrode info, to_analyse are list of cells
+    spatial_error = False
+    try:
+        recording.spatial.load()
+    except BaseException:
+        print(
+            "WARNING: Unable to load spatial information for {}".format(
+                recording.source_file
+            )
+        )
+        spatial_error = True
+
+    spatial = recording.spatial.underlying
+    for unit, to_analyse in zip(recording.units, all_analyse):
+
+        # Two cases for empty list of cells
+        if to_analyse is None:
+            continue
+        if len(to_analyse) == 0:
+            continue
+
+        unit.load()
+        # Loading can overwrite units_to_use, so reset these after load
+        unit.units_to_use = to_analyse
+        out_str_start = str(unit.group)
+        no_data_loaded = unit.underlying is None
+        available_units = unit.underlying.get_unit_list()
+
+        for cell in to_analyse:
+            name_for_save = out_str_start + "_" + str(cell)
+            output[name_for_save] = [np.nan] * NUM_RESULTS
+
+            if spatial_error:
+                continue
+            # Check to see if this data is ok
+            if no_data_loaded:
+                continue
+            if cell not in available_units:
+                continue
+
+            op = [np.nan] * NUM_RESULTS
+            fig, axes = plt.subplots(2, 1)
+            unit.underlying.set_unit_no(cell)
+            spike_train = unit.underlying.get_unit_stamp()
+            ibi_df, ibi_ax, sr, sp, nb = speed_ibi(spatial, spike_train, ax=axes[0])
+            op[0] = sr
+            op[1] = sp
+            op[2] = nb
+
+            res, speed_ax = speed_firing(spatial, spike_train, ax=axes[1], binsize=2)
+
+            op[3] = res["lin_fit_r"]
+            op[4] = res["lin_fit_p"]
+            op[5] = np.mean(np.array(spatial.get_speed()))
+            op[6] = len(spike_train) / unit.underlying.get_duration()
+
+            simuran.despine()
+            plt.tight_layout()
+            out_name_end = recording.get_name_for_save(base_dir)
+            out_name = os.path.join(out_dir, out_name_end) + img_format
+            print("Saving plot to {}".format(out_name))
+            fig.savefig(out_name, dpi=400)
+            plt.close(fig)
+
+            output[name_for_save] = op
+            # Do analysis on that unit
+            unit.underlying.reset_results()
+
+    return output
+
 
 def main(spatial, lfp_signal, spike_train, binsize=1, speed_sr=10):
     """Perform speed to lfp calculations."""
@@ -336,18 +468,6 @@ def main(spatial, lfp_signal, spike_train, binsize=1, speed_sr=10):
     simuran.despine()
     speed_amp_fig = simuran.SimuranFigure(fig, filename=None, done=True)
     return results, speed_amp_fig
-
-    # This part requires spike info
-
-    # Speed vs firing rate
-    data = spatial.speed(spike_train, binsize=binsize, samplesPerSec=speed_sr)
-    r, b = data["rate"], data["bins"]
-    b1, r1 = speed_firing(spatial, spike_train, speed_sr)
-
-    pd_df = list_to_df([b1, r1], transpose=True, headers=["Speed", "Firing rate"])
-    pd_df = pd_df[pd_df["Speed"] <= 40]
-    pd_df = pd_df[pd_df["Firing rate"] < 20]
-    pd_df["Speed"] = np.around(pd_df["Speed"])
 
     fig, axes = plt.subplots(2, 1)
     sns.lineplot(x=b, y=r, ax=axes[0])

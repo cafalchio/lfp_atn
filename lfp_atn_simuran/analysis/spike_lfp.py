@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from neurochat.nc_plot import plv, plv_bs, plv_tr
-from icecream import ic
 
 
 def nc_sfc(lfp, spike_train):
