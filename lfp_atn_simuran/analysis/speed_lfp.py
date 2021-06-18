@@ -44,7 +44,7 @@ def speed_firing(self, spike_train, **kwargs):
 # 2. Compare speed and interburst interval
 def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
     unitStamp = spike_train
-    isi = np.diff(unitStamp)
+    isi = 1000 * np.diff(unitStamp)
 
     burst_start = []
     burst_end = []
@@ -90,7 +90,7 @@ def calc_ibi(spike_train, speed, speed_sr, burst_thresh=5):
     else:
         logging.warning("No burst detected")
         return None, None
-    ibi = np.array(ibi)
+    ibi = np.array(ibi) / 1000
 
     return ibi, np.array(ibi_speeds)
 
@@ -434,6 +434,7 @@ def recording_speed_ibi(recording, out_dir, base_dir, **kwargs):
             simuran.despine()
             plt.tight_layout()
             out_name_end = recording.get_name_for_save(base_dir)
+            out_name_end += "_T{}_SS{}".format(out_str_start, str(cell))
             out_name = os.path.join(out_dir, out_name_end) + img_format
             print("Saving plot to {}".format(out_name))
             fig.savefig(out_name, dpi=400)
