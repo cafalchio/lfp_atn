@@ -51,8 +51,12 @@ def plot_pos_over_time(x, y, rate=2, save=False):
     fig, ax = plt.subplots(figsize=(8, 8))
     (scatter,) = ax.plot([], [], "ko")
     time_text = ax.text(0.02, 0.95, "", transform=ax.transAxes)
+    frame_time = 0
+    saved_times = []
 
     def init():
+        global frame_time
+        frame_time = 0
         ax.set_xlim(0, max(x) + 1)
         ax.set_ylim(max(y) + 1, 0)
         time_text.set_text("")
@@ -60,9 +64,18 @@ def plot_pos_over_time(x, y, rate=2, save=False):
 
     def update(frame):
         scatter.set_data(x[0:frame], y[0:frame])
-        frame_time = frame / 50
+        global frame_time
+        # 50 is the sampling rate
+        frame_time = frame / 50 
         time_text.set_text(f"time = {frame_time}")
         return scatter, time_text
+
+    def on_keyboard(event):
+        print(f"Pressed {event.key}")
+        global frame_time
+        saved_times.append(frame_time)
+        if event.key == " ":
+            print(frame_time)
 
     num_samples = int(len(x) // rate)
     interval = int(20 // rate)
@@ -79,7 +92,10 @@ def plot_pos_over_time(x, y, rate=2, save=False):
         ani.save("animated.mp4", writer)
 
     else:
+        plt.gcf().canvas.mpl_connect('key_press_event', on_keyboard)
         plt.show()
+
+    return saved_times
 
 
 if __name__ == "__main__":
