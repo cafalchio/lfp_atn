@@ -101,8 +101,8 @@ def main(excel_location, base_dir):
 
         ax.invert_yaxis()
         ax.legend()
-        base_dir = os.path.dirname(excel_location)
-        figname = os.path.join(base_dir, name) + "_tmaze.png"
+        base_dir_new = os.path.dirname(excel_location)
+        figname = os.path.join(base_dir_new, name) + "_tmaze.png"
         fig.savefig(figname, dpi=400)
         plt.close(fig)
 

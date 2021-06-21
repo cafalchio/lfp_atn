@@ -71,11 +71,10 @@ def plot_pos_over_time(x, y, rate=2, save=False):
         return scatter, time_text
 
     def on_keyboard(event):
-        print(f"Pressed {event.key}")
         global frame_time
-        saved_times.append(frame_time)
         if event.key == " ":
             print(frame_time)
+            saved_times.append(frame_time)
 
     num_samples = int(len(x) // rate)
     interval = int(20 // rate)
