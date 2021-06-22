@@ -1,12 +1,10 @@
 import os
 
 import simuran
-from skm_pyutils.py_save import save_mixed_dict_to_csv
+import matplotlib.pyplot as plt
 
 try:
-    from lfp_atn_simuran.analysis.lfp_clean import LFPClean
-    # from lfp_atn_simuran.analysis.spike_lfp import speed_lfp
-    from lfp_atn_simuran.analysis.speed_lfp import speed_lfp_amp
+    from lfp_atn_simuran.analysis.spike_lfp import nc_sfc
 
     do_analysis = True
 except ImportError:
@@ -113,36 +111,31 @@ def recording_info():
     return mapping
 
 
-def analyse_recording(
-    recording,
-    output_location,
-    set_file_location,
-    min_f,
-    max_f,
-    clean_method,
-    clean_kwargs,
-):
+def analyse_recording(recording, output_location):
+    """
 
-    # lfp_clean = LFPClean(method=clean_method, visualise="True", show_vis=False)
-    # result = lfp_clean.clean(
-    #     recording, min_f=min_f, max_f=max_f, method_kwargs=clean_kwargs
-    # )
-    # Just interface into spike_lfp with diff lfp signals to test the methods
-    figures = []
-    base_dir = os.path.dirname(recording.source_file)
-    clean_kwargs = {
-        "pick_property": "group",
-        "channels": ["LFP"],
-    }
-    results = speed_lfp_amp(
-        recording, figures, base_dir, clean_method="pick", clean_kwargs=clean_kwargs
-    )
-    for figure in figures:
-        figure.savefig()
+    Parameters
+    ----------
+    recording : simuran.recording.Recording
 
-    print(results)
+    """
+    lfp_signal = recording.signals[0].underlying
+    units = recording.units
+    available_units = recording.get_available_units()
+    for l in available_units:
+        group, avail_units = l
+        if len(avail_units) > 0:
+            group_to_use = recording.units.group_by_property("group", group)[1][0]
+            break
+    unit = recording.units[group_to_use].underlying
+    unit.set_unit_no(avail_units[0])
+    spike_times = unit.get_unit_stamp()
 
-    # nc_sfc(lfp_signal, spike_times)
+    figs, data = nc_sfc(lfp_signal, spike_times)
+
+    for i, f in enumerate(figs):
+        f.savefig(os.path.join(output_location, f"out_{i}.png"), dpi=300)
+        plt.close(f)
 
 
 def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
@@ -154,16 +147,9 @@ def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f
     else:
         os.makedirs(output_location, exist_ok=True)
 
-        clean_kwargs = {"channels": [17, 18, 19, 20]}
-        clean_method = "pick"
         analyse_recording(
             recording,
             output_location,
-            set_file_location,
-            min_f,
-            max_f,
-            clean_method,
-            clean_kwargs,
         )
 
 
