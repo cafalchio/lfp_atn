@@ -109,6 +109,8 @@ def speed_ibi(self, spike_train, **kwargs):
     ibi, ibi_speeds = calc_ibi(spike_train, speed, samples_per_sec)
     if ibi is None:
         return None, None, np.nan, np.nan, 0
+    elif len(ibi) < 10:
+        return None, None, np.nan, np.nan, 0
     spear_r, spear_p = scipy.stats.spearmanr(ibi_speeds, ibi)
 
     pd_df = list_to_df([ibi_speeds, ibi], transpose=True, headers=["Speed", "IBI"])
