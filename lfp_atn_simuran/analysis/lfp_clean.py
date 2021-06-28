@@ -41,8 +41,6 @@ def detect_outlying_signals(signals, z_threshold=1.1):
         z_score_abs[i] = np.abs(s - avg_sig) / std_sig
 
     z_score_means = np.nanmean(z_score_abs, axis=1)
-
-    # TODO test this more
     z_threshold = z_threshold * np.median(z_score_means)
 
     good, bad = [], []
@@ -54,6 +52,9 @@ def detect_outlying_signals(signals, z_threshold=1.1):
 
     good_signals = np.array([signals[i] for i in good])
     bad_signals = np.array([signals[i] for i in bad])
+
+    if len(good) == 0:
+        raise RuntimeError(f"No good signals found, bad were {bad}")
 
     return good_signals, bad_signals, good, bad
 
@@ -189,6 +190,8 @@ class LFPClean(object):
             method_kwargs = {}
         if isinstance(data, simuran.Recording):
             signals = data.signals
+            for i in range(len(signals)):
+                signals[i].load()
         else:
             signals = data
 
@@ -206,7 +209,7 @@ class LFPClean(object):
                 z_threshold=z_threshold,
                 **filter_kwargs,
             )
-            results["bad_channels"] = bad_chans
+            results["bad_channels"] = [signals[i].channel for i in bad_chans]
         elif self.method == "avg_raw":
             result, _ = self.avg_method(
                 signals, min_f, max_f, clean=False, **filter_kwargs
@@ -221,10 +224,11 @@ class LFPClean(object):
                 raise ValueError("You must pass the keyword arg channels for pick")
             container = simuran.GenericContainer(signals[0].__class__)
             container.container = [s for s in signals if getattr(s, prop) in channels]
-            result, _ = self.avg_method(
-                container, min_f, max_f, clean=False, **filter_kwargs
+            result, extra_bad = self.avg_method(
+                container, min_f, max_f, clean=True, **filter_kwargs
             )
             bad_chans = [s.channel for s in signals if getattr(s, prop) not in channels]
+            bad_chans += [signals[i].channel for i in extra_bad]
             results["bad_channels"] = bad_chans
         else:
             raise ValueError(f"{self.method} is not a valid clean method")
