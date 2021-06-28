@@ -37,3 +37,23 @@ Lesion:
 1. TODO list the parameters of the usual FIR filter used.
 2. Delta is considered to be in the range 1.5 - 4 Hz.
 3. Theta is considered to be in the range 6 - 10 Hz.
+
+## How to get everything to work currently
+```
+git clone https://github.com/seankmartin/SIMURAN
+cd SIMURAN
+pip install -e .
+cd ..
+git clone https://github.com/seankmartin/NeuroChaT
+cd NeuroChaT
+pip install -e .
+cd ..
+git clone https://github.com/seankmartin/PythonUtils
+cd PythonUtils
+pip install -e .
+cd ..
+git clone https://github.com/seankmartin/lfp_atn
+cd lfp_atn
+pip install -e .
+cd ..
+```
