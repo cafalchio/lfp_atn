@@ -6,7 +6,7 @@ import os
 start_dir = os.path.abspath(os.path.join("__dirname__", "LSR7"))
 
 # regex_filters should be a list of regex patterns to match against.
-regex_filters = ["^screening.*/.*[1-9]$"]
+regex_filters = ["^(screening|small).*/.*[1-9]$"]
 
 # Overwrites existing parameter files (simuran_params.py) if they exist.
 overwrite = True

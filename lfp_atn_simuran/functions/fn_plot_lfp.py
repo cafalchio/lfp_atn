@@ -1,18 +1,18 @@
 """
-simuran_fn_params controls the functions that will be performed.
-
-These functions are performed on each recording in a loaded container.
+The simuran_fn_params are used to control the functions
+that will be performed on each recording in a loaded container.
 """
 
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""
+
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    # This should be an actual function, as opposed to a string name
-    from plot_coherence import plot_recording_coherence
+    from plot_lfp_eg import mne_plot
+    from parse_cfg import parse_cfg_info
 
-    functions = [plot_recording_coherence]
+    functions = [mne_plot]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -46,12 +46,9 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {
-            "plot_recording_coherence": (
-                [figures, recording_container.base_dir],
-                {"sig_type": "first"},
-            )
-        }
+        args = [recording_container.base_dir, figures]
+        kwargs = parse_cfg_info()
+        arguments = {"mne_plot": (args, kwargs)}
         return arguments
 
     return functions, argument_handler
@@ -80,11 +77,12 @@ def setup_figures():
 
 def setup_output():
     """Establish what results of the functions will be saved."""
+
     # This should list the results to save to a csv
-    save_list = [("results", "plot_recording_coherence")]
+    save_list = [("results", "mne_plot")]
 
     # You can name each of these outputs
-    output_names = []
+    output_names = ["bad channels"]
 
     return save_list, output_names
 

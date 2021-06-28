@@ -1,8 +1,18 @@
 import os
 
 import simuran
+from skm_pyutils.py_save import save_mixed_dict_to_csv
 
-# Establish the recording layout
+try:
+    from lfp_atn_simuran.analysis.lfp_clean import LFPClean
+    from lfp_atn_simuran.analysis.plot_coherence import plot_recording_coherence
+    from lfp_atn_simuran.analysis.frequency_analysis import powers
+
+    do_analysis = True
+except ImportError:
+    do_analysis = False
+
+
 def recording_info():
     def setup_signals():
         """Set up the signals (such as eeg or lfp)."""
@@ -81,7 +91,7 @@ def recording_info():
         # Keyword arguments to pass to the loader.
         loader_kwargs = {
             "system": "Axona",
-            "pos_extension": ".pos",
+            "pos_extension": ".txt",
         }
 
         output_dict = {
@@ -103,23 +113,81 @@ def recording_info():
     return mapping
 
 
-def load_recording(set_file_location=None, type_=".pos"):
-    if set_file_location is None:
-        set_file_location = os.path.join(
-            "D:\\",
-            "SubRet_recordings_imaging",
-            os.path.normpath(
-                "LSubRet5/recording/Small sq up_small sq down/01122017/S1_small sq up/01122017_smallsqdownup_up_1_1.set"
-            ),
-        )
+def analyse_recording(
+    recording,
+    output_location,
+    set_file_location,
+    min_f,
+    max_f,
+    clean_method,
+    clean_kwargs,
+):
+    output_location = os.path.join(output_location, clean_method)
+    os.makedirs(output_location, exist_ok=True)
 
-    params = recording_info()
-    params["loader_kwargs"]["pos_extension"] = type_
-    recording = simuran.Recording(params=params, base_file=set_file_location)
+    lfp_clean = LFPClean(method=clean_method, visualise="True", show_vis=False)
+    result = lfp_clean.clean(
+        recording, min_f=min_f, max_f=max_f, method_kwargs=clean_kwargs
+    )
+    fig = result["fig"]
+    fig.savefig(os.path.join(output_location, "lfp_plot.png"))
+    fig.close()
 
-    return recording
+    # Then plot coherence and spectograms
+    figures = []
+    plot_recording_coherence(
+        recording,
+        figures,
+        os.path.dirname(set_file_location),
+        fmin=min_f,
+        fmax=max_f,
+        clean_method=clean_method,
+        clean_kwargs=clean_kwargs,
+    )
+    for figure in figures:
+        figure.set_filename(os.path.join(output_location, figure.get_filename()))
+        figure.save()
+        figure.close()
+
+    # Then integrate the periodogram to get powers
+    power_res = powers(
+        recording,
+        clean_method,
+        fmin=1,
+        fmax=100,
+        clean_kwargs=clean_kwargs,
+    )
+    save_mixed_dict_to_csv(power_res, output_location, f"power_{clean_method}.csv")
+
+
+def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
+    """Create a single recording for analysis."""
+    recording = simuran.Recording(params=recording_info(), base_file=set_file_location)
+    if not do_analysis:
+        return recording
+
+    else:
+        os.makedirs(output_location, exist_ok=True)
+
+        # First plot the LFP signal
+        # TODO can I make this clean easier???
+
+        clean_kwargs = {"channels": [17, 18, 19, 20]}
+        for clean_method in ("avg", "pick"):
+            analyse_recording(
+                recording,
+                output_location,
+                set_file_location,
+                min_f,
+                max_f,
+                clean_method,
+                clean_kwargs,
+            )
 
 
 if __name__ == "__main__":
-    recording = load_recording()
-    print(recording)
+    main_set_file_location = r"D:\SubRet_recordings_imaging\LSubRet5\recording\Small sq up_small sq down\01122017\S1_small sq up\01122017_smallsqdownup_up_1_1.set"
+    here = os.path.dirname(os.path.abspath(__file__))
+    main_output_location = os.path.join(here, "results")
+
+    main(main_set_file_location, main_output_location, True)

@@ -1,18 +1,18 @@
 """
-simuran_fn_params controls the functions that will be performed.
-
-These functions are performed on each recording in a loaded container.
+The simuran_fn_params are used to control the functions
+that will be performed on each recording in a loaded container.
 """
 
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""
+
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    # This should be an actual function, as opposed to a string name
-    from simuran.analysis.custom.plot_coherence import plot_recording_coherence
+    from lfp_atn_simuran.analysis.lfp_rate_map import lfp_rate_recording
+    from parse_cfg import parse_cfg_info
 
-    functions = [plot_recording_coherence]
+    functions = [lfp_rate_recording]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -46,12 +46,10 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {
-            "plot_recording_coherence": (
-                [figures, recording_container.base_dir],
-                {"sig_type": "dist"},
-            )
-        }
+        # TODO update to run each freq band in one go
+        fn_args = (recording_container.base_dir, figures)
+        fn_kwargs = parse_cfg_info()
+        arguments = {"lfp_rate_recording": (fn_args, fn_kwargs)}
         return arguments
 
     return functions, argument_handler
@@ -80,11 +78,12 @@ def setup_figures():
 
 def setup_output():
     """Establish what results of the functions will be saved."""
+
     # This should list the results to save to a csv
-    save_list = [("results", "plot_recording_coherence")]
+    save_list = [("results", "lfp_rate_recording")]
 
     # You can name each of these outputs
-    output_names = []
+    output_names = ["lfp_rate"]
 
     return save_list, output_names
 
@@ -125,7 +124,7 @@ def setup_loading():
 
     # If load_all is True, indicates what is loaded in bulk
     # Should be a subset of ["signals", "spatial", "units"]
-    to_load = ["signals"]
+    to_load = ["signals", "spatial"]
 
     # Whether a subset of recordings should be considered
     # True opens a console to help choose, but a list of indices can be passed
@@ -139,6 +138,7 @@ save_list, output_names = setup_output()
 figs, fig_names = setup_figures()
 sort_fn = setup_sorting()
 load_all, to_load, select_recordings = setup_loading()
+handle_errors = True
 fn_params = {
     "run": functions,
     "args": args_func,
@@ -150,4 +150,5 @@ fn_params = {
     "load_all": load_all,
     "to_load": to_load,
     "select_recordings": select_recordings,
+    "handle_errors": handle_errors,
 }

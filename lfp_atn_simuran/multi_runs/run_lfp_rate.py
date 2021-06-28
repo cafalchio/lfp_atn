@@ -3,6 +3,7 @@ simuran_multi_params describes running main.py for multiple
 different recordings, functions, etc.
 In theory, this could describe a full experiment.
 """
+import os
 
 
 def create_new_entry(batch_param_loc, fn_param_loc, add=""):
@@ -36,7 +37,9 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "CSR{}-openfield.py"
                 ).format(val),
-                os.path.join("__thisdirname__", "..", "functions", "coherence.py"),
+                os.path.join(
+                    "__thisdirname__", "..", "functions", "fn_lfp_rate.py"
+                ),
                 "CSR{}".format(val),
             )
         )
@@ -47,7 +50,9 @@ def set_file_locations():
                 os.path.join(
                     "__thisdirname__", "..", "batch_params", "LSR{}-openfield.py"
                 ).format(val),
-                os.path.join("__thisdirname__", "..", "functions", "coherence.py"),
+                os.path.join(
+                    "__thisdirname__", "..", "functions", "fn_lfp_rate.py"
+                ),
                 "LSR{}".format(val),
             )
         )
@@ -67,13 +72,17 @@ def set_fixed_params(in_dict):
     # For example, this could be used to concatenate
     # EEG signals that were recorded in two second long trials
     in_dict["keep_all_data"] = False
+
     return in_dict
 
 
 # Setup the actual parameters
-params = {"run_list": []}
+params = {"run_list": [], "to_merge": []}
 params = set_fixed_params(params)
 
 for val in set_file_locations():
     param_dict = create_new_entry(val[0], val[1], val[2])
+    fn_name = os.path.splitext(os.path.basename(val[1]))[0]
+    if fn_name not in params["to_merge"]:
+        params["to_merge"].append(fn_name)
     params["run_list"].append(param_dict)

@@ -3,15 +3,16 @@ The simuran_fn_params are used to control the functions
 that will be performed on each recording in a loaded container.
 """
 
+# TODO include LFP spectograms?
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""
+    from frequency_analysis import powers, per_animal_psd
+    from parse_cfg import parse_cfg_info
+    functions = [powers, (per_animal_psd, "run_after")]
 
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    from lfp_atn_simuran.analysis.lfp_clean import LFPClean
-
-    functions = [LFPClean.clean_lfp_signals]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -20,12 +21,24 @@ def setup_functions():
         Given recording_container, idx, and figures
         this should return all arguments for this run.
 
+        This is expected to be in the following format:
+        {
+            "fn_name1": (args1, kwargs1),
+            "fn_name2": (args2, kwargs2),
+        }
+
         This can be used to run the same function many times
         with different parameters, by providing an argument. E.g.
-        def add(recording, num1, num2):
-            return num1 + num2
-        functions = ["add"]
-        arguments["add"] = {"0": 1, 2, "1": 2, 3}
+
+        .. code-block:: python
+            def add(recording, num1, num2):
+                return num1 + num2
+
+            functions = [add]
+
+            arguments = {}
+            arguments["add"] = {"0": ([1, 2], {}) "1": ([2, 3], {})}
+
         would add 1 and 2, and then separately add 2 and 3
 
         Parameters
@@ -45,7 +58,12 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {}
+        args = [recording_container.base_dir, figures]
+        kwargs = parse_cfg_info()
+        args2 = ["__dirname__", figures]
+        arguments = {
+            "powers": (args, kwargs),
+            "per_animal_psd": (args2, kwargs)}
         return arguments
 
     return functions, argument_handler
@@ -76,10 +94,27 @@ def setup_output():
     """Establish what results of the functions will be saved."""
 
     # This should list the results to save to a csv
-    save_list = [("results")]
+    base_list = ["results", "powers"]
+    friendly_names = [
+        "SUB delta",
+        "SUB theta",
+        "SUB low gamma",
+        "SUB high gamma",
+        "SUB total",
+        "SUB delta rel",
+        "SUB theta rel",
+        "RSC delta",
+        "RSC theta",
+        "RSC low gamma",
+        "RSC high gamma",
+        "RSC total",
+        "RSC delta rel",
+        "RSC theta rel",
+    ]
+    save_list = [base_list + [fname] for fname in friendly_names]
 
     # You can name each of these outputs
-    output_names = []
+    output_names = friendly_names
 
     return save_list, output_names
 

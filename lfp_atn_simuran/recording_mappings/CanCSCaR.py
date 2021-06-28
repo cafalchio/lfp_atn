@@ -12,14 +12,21 @@ def setup_signals():
     """Set up the signals (such as eeg or lfp)."""
 
     # The total number of signals in the recording
-    num_signals = 0
+    num_signals = 32
 
     # What brain region each signal was recorded from
-    regions = ["SUB"] * 2 + ["RSC"] * 2
+    regions = ["SUB"] * 8 + ["CA1"] * 4 + ["RSC"] * 4 + ["SUB"] * 8 + ["CA1"] * 8
 
     # If the wires were bundled, or any other kind of grouping existed
     # If no grouping, grouping = [i for in range(num_signals)]
-    groups = ["LFP", "LFP", "LFP", "LFP"]
+    groups = (
+        ["LFP", "LFP"]
+        + [i for i in range(6)]
+        + ["LFP", "LFP"]
+        + [6, 7]
+        + ["LFP", "LFP"]
+        + [7 + i for i in range(num_signals - 14)]
+    )
 
     # The sampling rate in Hz of each signal
     sampling_rate = [250] * num_signals
@@ -38,13 +45,13 @@ def setup_signals():
 def setup_units():
     """Set up the single unit data."""
     # The number of tetrodes, probes, etc - any kind of grouping
-    num_groups = 7
+    num_groups = 8
 
     # The region that each group belongs to
-    regions = ["SUB"] * num_groups
+    regions = ["SUB"] * 2 + ["CA1"] + ["RSC"] + ["SUB"] * 2 + ["CA1"] * 2
 
     # A group number for each group, for example the tetrode number
-    groups = [i + 2 for i in range(num_groups)]
+    groups = [1, 2, 3, 4, 9, 10, 11, 12]
 
     output_dict = {
         "num_groups": num_groups,

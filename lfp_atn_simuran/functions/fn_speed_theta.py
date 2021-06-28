@@ -10,9 +10,10 @@ def setup_functions():
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
     # This should be an actual function, as opposed to a string name
-    from plot_coherence import plot_recording_coherence
+    from speed_lfp import speed_lfp_amp
+    from parse_cfg import parse_cfg_info
 
-    functions = [plot_recording_coherence]
+    functions = [speed_lfp_amp]
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -46,12 +47,12 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        arguments = {
-            "plot_recording_coherence": (
-                [figures, recording_container.base_dir],
-                {"sig_type": "avg"},
-            )
-        }
+        kwargs = parse_cfg_info()
+        kwargs["fmin"] = kwargs["theta_min"]
+        kwargs["fmax"] = kwargs["theta_max"]
+        args = [figures, recording_container.base_dir]
+        arguments = {"speed_lfp_amp": (args, kwargs)}
+        
         return arguments
 
     return functions, argument_handler
@@ -81,7 +82,11 @@ def setup_figures():
 def setup_output():
     """Establish what results of the functions will be saved."""
     # This should list the results to save to a csv
-    save_list = [("results", "plot_recording_coherence")]
+    save_list = [
+        ("results", "speed_lfp_amp", "mean_speed"),
+        ("results", "speed_lfp_amp", "duration"),
+        ("results", "speed_lfp_amp", "distance"),
+        ]
 
     # You can name each of these outputs
     output_names = []
@@ -125,7 +130,7 @@ def setup_loading():
 
     # If load_all is True, indicates what is loaded in bulk
     # Should be a subset of ["signals", "spatial", "units"]
-    to_load = ["signals"]
+    to_load = ["signals", "spatial"]
 
     # Whether a subset of recordings should be considered
     # True opens a console to help choose, but a list of indices can be passed
@@ -150,4 +155,5 @@ fn_params = {
     "load_all": load_all,
     "to_load": to_load,
     "select_recordings": select_recordings,
+    "handle_errors": False,
 }

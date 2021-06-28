@@ -1,91 +1,165 @@
+import os
+
 import numpy as np
 from scipy.signal import welch
 from astropy import units as u
-from sklearn.cluster import KMeans
+import simuran
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+from skm_pyutils.py_plot import UnicodeGrabber
 
 from lfp_atn_simuran.analysis.lfp_clean import LFPClean
-from sklearn.metrics import silhouette_score
 
 
-def detect_outlying_signals(signals):
-    avg_sig = np.mean(np.array([s.samples for s in signals]), axis=0)
+def plot_psd(
+    x, ax, fs=250, group="ATNx", region="SUB", fmin=1, fmax=100, scale="volts"
+):
+    f, Pxx = welch(
+        x.samples.to(u.uV).value,
+        fs=fs,
+        nperseg=2 * fs,
+        return_onesided=True,
+        scaling="density",
+        average="mean",
+    )
 
-    diff = np.zeros(shape=(len(signals), len(signals[0].samples)))
+    f = f[np.nonzero((f >= fmin) & (f <= fmax))]
+    Pxx = Pxx[np.nonzero((f >= fmin) & (f <= fmax))]
 
-    for i, s in enumerate(signals):
-        diff[i] = np.square(s.samples - avg_sig) / (
-            np.sum(np.square(s.samples) + np.square(avg_sig)) / 2
-        )
-
-    return diff
-
-
-def grouped_powers(recording, **kwargs):
-    """Signal power in clusters."""
-    s_part = kwargs.get("win_len", 2)
-    n_clusters = kwargs.get("n_clusters", None)
-    step = kwargs.get("step", 0.1)
-    min_f = kwargs.get("min_f", 1.0)
-    max_f = kwargs.get("max_f", 100)
-    n_features = int(s_part / step)
-    cluster_features = np.zeros((len(recording.signals), n_features)) * u.uV
-    for i, sig in enumerate(recording.signals):
-        for j, val in enumerate(np.arange(0, s_part, step=step)):
-            sample = sig.in_range(val, val + 0.1)
-            res = np.sum(np.abs(sample))
-            cluster_features[i][j] = res
-
-    results = {"clustering": {}}
-    sigs = {}
-
-    if n_clusters is None:
-        sc = []
-        for clusts in range(2, 6):
-            cluster = KMeans(n_clusters=clusts, random_state=42)
-            cluster_labels = cluster.fit_predict(cluster_features)
-            sc.append(silhouette_score(cluster_features, cluster_labels))
-        results["silhoeutte"] = sc
-        best_sc, best_id = -1, -1
-        for i in range(4):
-            if sc[i] > best_sc:
-                best_sc, best_id = sc[i], i + 2
-        cluster = KMeans(n_clusters=best_id, random_state=42)
-        cluster_labels = cluster.fit_predict(cluster_features)
-        sc = silhouette_score(cluster_features, cluster_labels)
-        results["silhoeutte_final"] = sc
-        n_clusters = best_id
-
+    ylabel = None
+    if scale == "volts":
+        micro = UnicodeGrabber.get("micro")
+        pow2 = UnicodeGrabber.get("pow2")
+        ylabel = f"PSD ({micro}V{pow2} / Hz)"
+    elif scale == "decibels":
+        # Convert to full scale relative dB (so max at 0)
+        Pxx_max = np.max(Pxx)
+        Pxx = 10 * np.log10(Pxx / Pxx_max)
+        ylabel = "PSD (dB)"
     else:
-        cluster = KMeans(n_clusters=n_clusters, random_state=42)
-        cluster_labels = cluster.fit_predict(cluster_features)
-        sc = silhouette_score(cluster_features, cluster_labels)
-        results["silhoeutte"] = sc
+        raise ValueError("Unsupported scale {}".format(scale))
+    sns.lineplot(x=f, y=Pxx, ax=ax)
+    simuran.despine()
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel(ylabel)
 
-    for i in range(n_clusters):
-        idxs = np.nonzero(cluster_labels == i)[0]
-        sigs[i] = recording.signals.subsample(idxs)
-        results["clustering"][i] = [s.channel for s in sigs[i]]
-
-    for i in range(n_clusters):
-        avg_sig = LFPClean.avg_signals(sigs[i], min_f, max_f)
-        res = signal_powers(avg_sig, **kwargs)
-        for k, v in res.items():
-            results[f"Cluster {i} -- {k}"] = v
-
-    return results
+    if scale == "volts":
+        return np.array([f, Pxx, [group] * len(f), [region] * len(f)])
+    else:
+        return (np.array([f, Pxx, [group] * len(f), [region] * len(f)]), Pxx_max)
 
 
-def powers(recording, **kwargs):
-    # TODO refactor the cleaning
-    min_f = kwargs.get("min_f", 1.0)
-    max_f = kwargs.get("max_f", 100)
-    signals = LFPClean.avg_signals(recording.signals, min_f, max_f)
-    return signal_powers(signals, **kwargs)
+def per_animal_psd(recording_container, base_dir, figures, **kwargs):
+    simuran.set_plot_style()
+    item_list = [r.results for r in recording_container]
+    parsed_info = []
+
+    scale = kwargs.get("psd_scale", "volts")
+
+    fmt = kwargs.get("image_format", "png")
+
+    for item_dict in item_list:
+        item_dict = item_dict["powers"]
+        for r in ["SUB", "RSC"]:
+            id_ = item_dict[r + " welch"]
+            powers = id_[1]
+            for v1, v2, v3, v4 in zip(id_[0], powers, id_[2], id_[3]):
+                parsed_info.append([v1, v2, v3, v4])
+
+    data = np.array(parsed_info)
+    df = pd.DataFrame(data, columns=["frequency", "power", "Group", "region"])
+    df[["frequency", "power"]] = df[["frequency", "power"]].apply(pd.to_numeric)
+
+    for ci, oname in zip([95, None], ["_ci", ""]):
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df[df["region"] == "SUB"],
+            x="frequency",
+            y="power",
+            ci=ci,
+            estimator=np.median,
+            ax=ax,
+        )
+        simuran.despine()
+        plt.xlabel("Frequency (Hz)")
+
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            ax.set_ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            ax.set_ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
+        plt.tight_layout()
+
+        name = recording_container.base_dir[len(base_dir + os.sep) :].replace(
+            os.sep, "--"
+        )
+        out_name = name + "--sub--power{}".format(oname)
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
+
+        fig, ax = plt.subplots()
+        sns.lineplot(
+            data=df[df["region"] == "RSC"],
+            x="frequency",
+            y="power",
+            ci=ci,
+            estimator=np.median,
+            ax=ax,
+        )
+        simuran.despine()
+        plt.xlabel("Frequency (Hz)")
+        if scale == "volts":
+            micro = UnicodeGrabber.get("micro")
+            pow2 = UnicodeGrabber.get("pow2")
+            ax.set_ylabel(f"PSD ({micro}V{pow2} / Hz)")
+        elif scale == "decibels":
+            ax.set_ylabel("PSD (dB)")
+        else:
+            raise ValueError("Unsupported scale {}".format(scale))
+        plt.tight_layout()
+
+        out_name = name + "--rsc--power{}".format(oname)
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
 
 
-def signal_powers(signals_grouped_by_region, **kwargs):
+def define_recording_group(base_dir):
+    dirs = base_dir.split(os.sep)
+    if dirs[-1].startswith("CS") or dirs[-2].startswith("CS"):
+        group = "Control"
+    elif dirs[-1].startswith("LS") or dirs[-2].startswith("LS"):
+        group = "Lesion"
+    else:
+        group = "Undefined"
+    return group
+
+
+def name_plot(recording, base_dir, end):
+    return recording.get_name_for_save(base_dir) + end
+
+
+def powers(
+    recording, base_dir, figures, clean_method="avg", fmin=1, fmax=100, **kwargs
+):
+    clean_kwargs = kwargs.get("clean_kwargs", {})
+    lc = LFPClean(method=clean_method, visualise=False)
+    signals_grouped_by_region = lc.clean(
+        recording.signals, fmin, fmax, method_kwargs=clean_kwargs
+    )["signals"]
+    fmt = kwargs.get("image_format", "png")
+    psd_scale = kwargs.get("psd_scale", "volts")
+    theta_min = kwargs.get("theta_min", 6)
+    theta_max = kwargs.get("theta_max", 10)
+    delta_min = kwargs.get("delta_min", 1.5)
+    delta_max = kwargs.get("delta_max", 4.0)
+
     results = {}
-    window_sec = kwargs.get("window_sec", 4)
+    window_sec = 2
+    simuran.set_plot_style()
 
     for name, signal in signals_grouped_by_region.items():
         results["{} delta".format(name)] = np.nan
@@ -99,13 +173,12 @@ def signal_powers(signals_grouped_by_region, **kwargs):
         results["{} low gamma rel".format(name)] = np.nan
         results["{} high gamma rel".format(name)] = np.nan
 
-        # TODO find good bands from a paper
         sig_in_use = signal.to_neurochat()
         delta_power = sig_in_use.bandpower(
-            [1.5, 4], window_sec=window_sec, band_total=True
+            [delta_min, delta_max], window_sec=window_sec, band_total=True
         )
         theta_power = sig_in_use.bandpower(
-            [6, 10], window_sec=window_sec, band_total=True
+            [theta_min, theta_max], window_sec=window_sec, band_total=True
         )
         low_gamma_power = sig_in_use.bandpower(
             [30, 55], window_sec=window_sec, band_total=True
@@ -133,17 +206,22 @@ def signal_powers(signals_grouped_by_region, **kwargs):
         results["{} low gamma rel".format(name)] = low_gamma_power["relative_power"]
         results["{} high gamma rel".format(name)] = high_gamma_power["relative_power"]
 
-        low, high = [0.1, 125]
-        window_sec = kwargs.get("window_sec", 2 / (low + 0.000001))
-        unit = kwargs.get("unit", "micro")
-        scale = u.uV if unit == "micro" else u.mV
-        sf = signal.get_sampling_rate()
-        lfp_samples = np.array(signal.samples * scale)
-
-        # Compute the modified periodogram (Welch)
-        nperseg = int(window_sec * sf)
-        freqs, psd = welch(lfp_samples, sf, nperseg=nperseg)
-        idx_band = np.logical_and(freqs >= low, freqs <= high)
-        results["{} welch".format(name)] = [freqs[idx_band], psd[idx_band]]
+        # Do power spectra
+        out_name = name_plot(recording, base_dir, f"_power_{name}")
+        sr = signal.sampling_rate
+        fig, ax = plt.subplots()
+        group = define_recording_group(base_dir)
+        if psd_scale == "volts":
+            results["{} welch".format(name)] = plot_psd(
+                signal, ax, sr, group, name, fmin=fmin, fmax=fmax, scale=psd_scale
+            )
+        else:
+            r1, r2 = plot_psd(
+                signal, ax, sr, group, name, fmin=fmin, fmax=fmax, scale=psd_scale
+            )
+            results["{} welch".format(name)] = r1
+            results["{} max f".format(name)] = r2
+        fig = simuran.SimuranFigure(fig, out_name, dpi=400, done=True, format=fmt)
+        figures.append(fig)
 
     return results

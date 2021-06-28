@@ -1,8 +1,16 @@
 import os
 
 import simuran
+import matplotlib.pyplot as plt
 
-# Establish the recording layout
+try:
+    from lfp_atn_simuran.analysis.spike_lfp import nc_sfc
+
+    do_analysis = True
+except ImportError:
+    do_analysis = False
+
+
 def recording_info():
     def setup_signals():
         """Set up the signals (such as eeg or lfp)."""
@@ -14,7 +22,7 @@ def recording_info():
 
         # If the wires were bundled, or any other kind of grouping existed
         # If no grouping, groups = [i for i in range(num_signals)]
-        groups = [0, 0, 1, 1]
+        groups = ["LFP", "LFP", "LFP", "LFP"]
         for i in range(2, 9):
             groups.append(i)
             groups.append(i)
@@ -81,7 +89,7 @@ def recording_info():
         # Keyword arguments to pass to the loader.
         loader_kwargs = {
             "system": "Axona",
-            "pos_extension": ".pos",
+            "pos_extension": ".txt",
         }
 
         output_dict = {
@@ -103,23 +111,51 @@ def recording_info():
     return mapping
 
 
-def load_recording(set_file_location=None, type_=".pos"):
-    if set_file_location is None:
-        set_file_location = os.path.join(
-            "D:\\",
-            "SubRet_recordings_imaging",
-            os.path.normpath(
-                "LSubRet5/recording/Small sq up_small sq down/01122017/S1_small sq up/01122017_smallsqdownup_up_1_1.set"
-            ),
+def analyse_recording(recording, output_location):
+    """
+
+    Parameters
+    ----------
+    recording : simuran.recording.Recording
+
+    """
+    lfp_signal = recording.signals[0].underlying
+    units = recording.units
+    available_units = recording.get_available_units()
+    for l in available_units:
+        group, avail_units = l
+        if len(avail_units) > 0:
+            group_to_use = recording.units.group_by_property("group", group)[1][0]
+            break
+    unit = recording.units[group_to_use].underlying
+    unit.set_unit_no(avail_units[0])
+    spike_times = unit.get_unit_stamp()
+
+    figs, data = nc_sfc(lfp_signal, spike_times)
+
+    for i, f in enumerate(figs):
+        f.savefig(os.path.join(output_location, f"out_{i}.png"), dpi=300)
+        plt.close(f)
+
+
+def main(set_file_location, output_location, do_analysis=False, min_f=0.5, max_f=30):
+    """Create a single recording for analysis."""
+    recording = simuran.Recording(params=recording_info(), base_file=set_file_location)
+    if not do_analysis:
+        return recording
+
+    else:
+        os.makedirs(output_location, exist_ok=True)
+
+        analyse_recording(
+            recording,
+            output_location,
         )
-
-    params = recording_info()
-    params["loader_kwargs"]["pos_extension"] = type_
-    recording = simuran.Recording(params=params, base_file=set_file_location)
-
-    return recording
 
 
 if __name__ == "__main__":
-    recording = load_recording()
-    print(recording)
+    main_set_file_location = r"D:\SubRet_recordings_imaging\LSubRet5\recording\Small sq up_small sq down\01122017\S1_small sq up\01122017_smallsqdownup_up_1_1.set"
+    here = os.path.dirname(os.path.abspath(__file__))
+    main_output_location = os.path.join(here, "results")
+
+    main(main_set_file_location, main_output_location, True)

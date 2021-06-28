@@ -6,7 +6,7 @@ import os
 start_dir = os.path.abspath(os.path.join("__dirname__", "CSR6"))
 
 # regex_filters should be a list of regex patterns to match against.
-regex_filters = ["^small.*/.*[1-9]/.*"]
+regex_filters = ["(^small.*/.*[1-9]/S1.*)|(^screen.*/.*[1-9])"]
 
 # Overwrites existing parameter files (simuran_params.py) if they exist.
 overwrite = True
@@ -26,7 +26,7 @@ mapping = {}  # see default_params.py to set this up
 directory = "__thisdirname__"
 # Absolute path to a file that contains the mapping.
 mapping_file = os.path.abspath(
-    os.path.join(directory, "..", "recording_mappings", "CL-SR_4-6.py")
+    os.path.join(directory, "..", "recording_mappings", "CL-SR_4-6-no-cells.py")
 )
 
 # The basename of the output parameter files.

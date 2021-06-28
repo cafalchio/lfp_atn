@@ -1,17 +1,17 @@
 """
-The simuran_fn_params are used to control the functions
-that will be performed on each recording in a loaded container.
+simuran_fn_params controls the functions that will be performed.
+
+These functions are performed on each recording in a loaded container.
 """
 
 
 def setup_functions():
     """Establish the functions to run and arguments to pass."""
-
     # The list of functions to run, in order
     # Each function should take as its first argument a recording object
-    from lfp_atn_simuran.analysis.lfp_rate_map import lfp_rate_recording
+    # This should be an actual function, as opposed to a string name
 
-    functions = [lfp_rate_recording]
+    functions = []
 
     def argument_handler(recording_container, idx, figures):
         """
@@ -45,10 +45,7 @@ def setup_functions():
             The arguments to use for each function in functions
 
         """
-        fn_args = (recording_container.base_dir, figures)
-        fn_kwargs = {"save_format": "png"}
-        arguments = {"lfp_rate_recording": (fn_args, fn_kwargs)}
-        return arguments
+        return {}
 
     return functions, argument_handler
 
@@ -76,12 +73,11 @@ def setup_figures():
 
 def setup_output():
     """Establish what results of the functions will be saved."""
-
     # This should list the results to save to a csv
-    save_list = [("results", "lfp_rate_recording")]
+    save_list = []
 
     # You can name each of these outputs
-    output_names = ["lfp_rate"]
+    output_names = []
 
     return save_list, output_names
 
@@ -118,11 +114,11 @@ def setup_sorting():
 def setup_loading():
     """Establish how recordings are loaded."""
     # Indicates if all information on a recording is loaded in bulk, or as needed
-    load_all = True
+    load_all = False
 
     # If load_all is True, indicates what is loaded in bulk
     # Should be a subset of ["signals", "spatial", "units"]
-    to_load = ["signals", "spatial"]
+    to_load = []
 
     # Whether a subset of recordings should be considered
     # True opens a console to help choose, but a list of indices can be passed
@@ -136,7 +132,6 @@ save_list, output_names = setup_output()
 figs, fig_names = setup_figures()
 sort_fn = setup_sorting()
 load_all, to_load, select_recordings = setup_loading()
-handle_errors = True
 fn_params = {
     "run": functions,
     "args": args_func,
@@ -148,5 +143,4 @@ fn_params = {
     "load_all": load_all,
     "to_load": to_load,
     "select_recordings": select_recordings,
-    "handle_errors": handle_errors,
 }
